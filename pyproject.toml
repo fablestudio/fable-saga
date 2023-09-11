@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
-packages = [{include = "fable_generative_agents"}]
+packages = [{include = "fable_agents"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
