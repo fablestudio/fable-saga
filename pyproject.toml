@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "fable-generative-agents"
+version = "0.1.0"
+description = ""
+authors = ["Frank Carey <fcarey@gmail.com>"]
+readme = "README.md"
+packages = [{include = "fable_generative_agents"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-socketio = "^5.9.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
