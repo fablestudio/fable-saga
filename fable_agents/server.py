@@ -3,10 +3,16 @@ import random
 
 from aiohttp import web
 import socketio
+from cattrs import structure, unstructure
+
+import api
+from fable_agents import data
 
 sio = socketio.AsyncServer()
 app = web.Application()
 sio.attach(app)
+
+api.sio = sio
 
 async def index(request):
     """Serve the client-side application."""
@@ -31,27 +37,31 @@ async def echo(sid, message):
     await sio.emit('echo', message)
 
 @sio.on('ack')
-async def echo(sid, message):
-    print ('ack', message)
-    return message
+async def ack(sid, type, data):
+    print ('ack', type, data)
+    return type, data
 
 @sio.on('message')
-async def echo(sid, message):
-    print ('message', message)
+async def message(sid, message_type, message_data):
+    print ('message', message_type, message_data)
     # it's probably better to not encode the message as a json string, but if we don't
     # then the client will deserialize it before we can deserialize it ourselves.
     # TODO: See if we can find an alternative to this.
     # TODO: Check the type of message first, and respond accordingly.
     try:
-        data = json.loads(message)
+        msg_data = json.loads(message_data)
+
     except json.decoder.JSONDecodeError:
-        data = message
-    if type(data) is dict and data['type'] == 'choose-sequence':
-        choice = random.randint(0, len(data['options']) - 1)
-        print('choice', data['options'][choice])
-        return json.dumps({"choice": choice})
+        msg_data = message_data
+    msg = data.Message(message_type, msg_data)
+    if msg.type == 'choose-sequence':
+        choice = random.randint(0, len(msg.data['options']) - 1)
+        print('choice', msg.data['options'][choice])
+        # Send back the choice.
+        msg = data.Message('choose-sequence-response', json.dumps({"choice": choice}))
+        return msg.type, msg.data
     else:
-        return data
+        return msg.type, msg.data
 
 
 @sio.on('heartbeat')
