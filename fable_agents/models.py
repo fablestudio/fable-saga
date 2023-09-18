@@ -15,4 +15,4 @@ class Persona:
 @define(slots=True)
 class Message:
     type: str
-    data: Any
+    data: dict

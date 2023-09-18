@@ -1,8 +1,8 @@
 from typing import Dict
-import data
+import models
 
 class MemoryDatastore:
-    personas: Dict[str, data.Persona] = {}
+    personas: Dict[str, models.Persona] = {}
 
 
 memory_datastore = MemoryDatastore()

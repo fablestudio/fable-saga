@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 
@@ -6,13 +7,14 @@ import socketio
 from cattrs import structure, unstructure
 
 import api
-from fable_agents import data
+from fable_agents import models
 
 sio = socketio.AsyncServer()
-app = web.Application()
+app: web.Application = web.Application()
 sio.attach(app)
-
+#client_loop = asyncio.new_event_loop()
 api.sio = sio
+simulation = api.SimulationAPI()
 
 async def index(request):
     """Serve the client-side application."""
@@ -21,6 +23,7 @@ async def index(request):
 
 @sio.event
 def connect(sid, environ):
+    api.simulation_client_id = sid
     print("connect ", sid)
 
 @sio.event
@@ -53,23 +56,36 @@ async def message(sid, message_type, message_data):
 
     except json.decoder.JSONDecodeError:
         msg_data = message_data
-    msg = data.Message(message_type, msg_data)
+    msg = models.Message(message_type, msg_data)
     if msg.type == 'choose-sequence':
         choice = random.randint(0, len(msg.data['options']) - 1)
         print('choice', msg.data['options'][choice])
         # Send back the choice.
-        msg = data.Message('choose-sequence-response', json.dumps({"choice": choice}))
-        return msg.type, msg.data
+        msg = models.Message('choose-sequence-response', {"choice": choice})
+        return msg.type, json.dumps(msg.data)
     else:
-        return msg.type, msg.data
+        return msg.type, json.dumps(msg.data)
 
 
 @sio.on('heartbeat')
 async def heartbeat(sid):
     print('heartbeat', sid)
 
+async def sync_personas():
+    """
+    Sync the personas with the server.
+    """
+    while True:
+        print("syncing personas 1")
+        await asyncio.sleep(5)
+        print("syncing personas 2")
+        await simulation.reload_personas([], lambda: print('personas loaded 3'))
+
+
 app.router.add_static('/static', 'static')
 app.router.add_get('/', index)
 
 if __name__ == '__main__':
-    web.run_app(app)
+    loop = asyncio.get_event_loop()
+    loop.create_task(sync_personas())
+    web.run_app(app, loop=loop)
