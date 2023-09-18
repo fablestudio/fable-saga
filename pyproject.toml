@@ -10,6 +10,7 @@ packages = [{include = "fable_agents"}]
 python = "^3.10"
 python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
+aiohttp = "^3.8.5"
 
 
 [build-system]
