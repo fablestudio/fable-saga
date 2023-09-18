@@ -15,6 +15,7 @@ sio.attach(app)
 #client_loop = asyncio.new_event_loop()
 api.sio = sio
 simulation = api.SimulationAPI()
+gaia = api.GaiaAPI()
 
 async def index(request):
     """Serve the client-side application."""
@@ -71,15 +72,22 @@ async def message(sid, message_type, message_data):
 async def heartbeat(sid):
     print('heartbeat', sid)
 
-async def sync_personas():
+async def internal_tick():
     """
     Sync the personas with the server.
     """
     while True:
-        print("syncing personas 1")
+        if api.simulation_client_id is None:
+            await asyncio.sleep(1)
+            continue
+
+        if  len(api.memory_datastore.personas) == 0:
+            await simulation.reload_personas([], None)
+            await asyncio.sleep(1)
+            continue
+        else:
+            await gaia.create_conversation('wyatt_cooper', None)
         await asyncio.sleep(5)
-        print("syncing personas 2")
-        await simulation.reload_personas([], lambda: print('personas loaded 3'))
 
 
 app.router.add_static('/static', 'static')
@@ -87,5 +95,5 @@ app.router.add_get('/', index)
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(sync_personas())
+    loop.create_task(internal_tick())
     web.run_app(app, loop=loop)
