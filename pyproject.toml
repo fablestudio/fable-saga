@@ -11,6 +11,7 @@ python = "^3.10"
 python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
 aiohttp = "^3.8.5"
+langchain = {extras = ["llms"], version = "^0.0.293"}
 
 
 [build-system]

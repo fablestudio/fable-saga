@@ -33,6 +33,21 @@ async def send(type: str, data: dict, callback: Callable[[models.Message], None]
         await sio.emit('message', (type, json.dumps(data)))
 
 
+class GaiaAPI:
+
+    async def create_conversation(self, persona_guids: List[str], on_complete: Callable[[models.Message], None]):
+        """
+        Create a new conversation.
+        :param persona_guids: unique identifiers for the personas.
+        :param callback: function to call when the conversation is created.
+        """
+        pass
+
+
+
+
+
+
 class SimulationAPI:
 
     async def reload_personas(self, guids: List[str], on_complete: Callable[[], None]):
