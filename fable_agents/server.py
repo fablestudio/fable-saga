@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import datetime
 
 from aiohttp import web
 import socketio
@@ -47,25 +48,31 @@ async def ack(sid, type, data):
 
 @sio.on('message')
 async def message(sid, message_type, message_data):
-    print ('message', message_type, message_data)
+    #print ('message', message_type, message_data)
     # it's probably better to not encode the message as a json string, but if we don't
     # then the client will deserialize it before we can deserialize it ourselves.
     # TODO: See if we can find an alternative to this.
     # TODO: Check the type of message first, and respond accordingly.
     try:
-        msg_data = json.loads(message_data)
+        parsed_data = json.loads(message_data)
 
     except json.decoder.JSONDecodeError:
-        msg_data = message_data
-    msg = models.Message(message_type, msg_data)
+        parsed_data = message_data
+    msg = models.Message(message_type, parsed_data)
     if msg.type == 'choose-sequence':
         choice = random.randint(0, len(msg.data['options']) - 1)
         print('choice', msg.data['options'][choice])
         # Send back the choice.
         msg = models.Message('choose-sequence-response', {"choice": choice})
         return msg.type, json.dumps(msg.data)
+    elif msg.type == 'character-status-update-tick':
+        updates_raw = msg.data.get("updates", [])
+        timestamp_str = msg.data.get("timestamp", '')
+        dt = datetime.datetime.fromisoformat(timestamp_str)
+        updates = [models.StatusUpdate.from_dict(dt, json.loads(u)) for u in updates_raw]
+        api.memory_datastore.add_status_updates(dt, updates)
     else:
-        return msg.type, json.dumps(msg.data)
+        print("handler not found for message type", msg.type)
 
 
 @sio.on('heartbeat')
@@ -86,7 +93,12 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
         else:
-            await gaia.create_conversation('wyatt_cooper', None)
+            initiator_persona = api.memory_datastore.random_personas(1)[0]
+            def handler(conversation):
+                print("speaker", initiator_persona.guid)
+                print("conversation", conversation)
+
+            await gaia.create_conversation(initiator_persona.guid, handler)
         await asyncio.sleep(5)
 
 

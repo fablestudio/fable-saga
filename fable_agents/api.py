@@ -59,7 +59,8 @@ class GaiaAPI:
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
         chain = LLMChain(llm=llm, prompt=prompt)
         resp = await chain.arun(self_description=json.dumps(format_persona(initiator_persona)), options=json.dumps(options))
-        print(resp)
+        if on_complete is not None:
+            on_complete(resp)
 
 
 class SimulationAPI:

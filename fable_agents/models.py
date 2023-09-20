@@ -1,4 +1,5 @@
 import json
+import datetime
 from typing import Any
 
 from attrs import define
@@ -34,3 +35,42 @@ class Persona:
 class Message:
     type: str
     data: dict
+
+
+@define(slots=True)
+class StatusUpdate:
+    timestamp: datetime.datetime
+    guid: str
+    sequence: str
+    sequence_step: str
+    location: 'Vector3'
+    destination: 'Vector3'
+
+    @staticmethod
+    def from_dict(timestamp: datetime.datetime, obj:dict):
+        print(obj)
+        params = {
+            'timestamp': timestamp,
+            'guid': obj['id'],
+            'sequence': obj['sequence'],
+            'sequence_step': obj['sequenceStep'],
+            'location': Vector3.from_dict(obj['location']),
+            'destination': Vector3.from_dict(obj['destination'])
+        }
+        return StatusUpdate(**params)
+@define(slots=True)
+class Vector3:
+    x: float
+    y: float
+    z: float
+
+    @staticmethod
+    def from_dict(obj):
+        if obj is None:
+            return None
+        params = {
+            'x': obj['x'],
+            'y': obj['y'],
+            'z': obj['z']
+        }
+        return Vector3(**params)
