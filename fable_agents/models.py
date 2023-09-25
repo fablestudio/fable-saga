@@ -6,6 +6,10 @@ from attrs import define
 from cattrs import structure, unstructure
 
 
+class World:
+    last_update: datetime.datetime
+
+
 @define(slots=True)
 class Persona:
     guid: str
@@ -74,3 +78,7 @@ class Vector3:
             'z': obj['z']
         }
         return Vector3(**params)
+
+    @staticmethod
+    def distance(v1, v2):
+        return ((v1.x - v2.x)**2 + (v1.y - v2.y)**2 + (v1.z - v2.z)**2)**0.5

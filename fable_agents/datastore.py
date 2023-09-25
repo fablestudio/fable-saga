@@ -3,6 +3,7 @@ import models
 import random
 import datetime
 
+
 class MemoryDatastore:
     personas: Dict[str, models.Persona] = {}
     status_updates: Dict[datetime.datetime, List[models.StatusUpdate]] = {}
@@ -17,6 +18,9 @@ class MemoryDatastore:
         if timestamp not in self.status_updates:
             self.status_updates[timestamp] = []
         self.status_updates[timestamp].extend(updates)
+
+    def last_status_update(self):
+        return list(self.status_updates)[-1]
 
 
 memory_datastore = MemoryDatastore()
