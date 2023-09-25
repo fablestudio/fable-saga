@@ -94,13 +94,13 @@ class GaiaAPI:
             return
 
         # Create a list of personas to send to the server as options.
-        observation_events = []
+        observation_events = {}
 
         # sort by distance for now. Later we might include a priority metric as well.
         updates_to_consider.sort(key=lambda x: Vector3.distance(x.location, observer_update.location))
         for update in updates_to_consider[:self.observation_limit]:
             if update.location is not None and Vector3.distance(update.location, observer_update.location) <= self.observation_distance:
-                observation_events.append(Format.observation_event(update, observer_update.location))
+                observation_events[update.guid] = Format.observation_event(update, observer_update.location)
 
         prompt = load_prompt("prompt_templates/observation_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
@@ -108,7 +108,21 @@ class GaiaAPI:
         pprint(observation_events)
         resp = await chain.arun(self_description=json.dumps(Format.persona(initiator_persona)),
                                 self_update=json.dumps(Format.observation_event(observer_update, observer_update.location)),
-                                update_options=json.dumps(observation_events))
+                                update_options=json.dumps(list(observation_events.values())))
+        if resp:
+            try:
+                intelligent_observations = json.loads(resp)
+            except json.decoder.JSONDecodeError as e:
+                print("Error decoding response", e, resp)
+                intelligent_observations = []
+            for observation in intelligent_observations:
+                guid = observation.get('guid', None)
+                if guid in memory_datastore.personas.keys():
+                    update = observation_events.get(guid, None)
+                    summary = observation.get('summary_of_activity', None)
+                    response = observation.get('reaction', None)
+                    memory_datastore.vector_memory.save_context({"observation": update, "summary": summary}, {"response": response})
+
         if on_complete is not None:
             on_complete(resp)
 

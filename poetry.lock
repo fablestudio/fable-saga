@@ -420,6 +420,40 @@ files = [
 test = ["pytest (>=6)"]
 
 [[package]]
+name = "faiss-cpu"
+version = "1.7.4"
+description = "A library for efficient similarity search and clustering of dense vectors."
+optional = false
+python-versions = "*"
+files = [
+    {file = "faiss-cpu-1.7.4.tar.gz", hash = "sha256:265dc31b0c079bf4433303bf6010f73922490adff9188b915e2d3f5e9c82dd0a"},
+    {file = "faiss_cpu-1.7.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:50d4ebe7f1869483751c558558504f818980292a9b55be36f9a1ee1009d9a686"},
+    {file = "faiss_cpu-1.7.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:7b1db7fae7bd8312aeedd0c41536bcd19a6e297229e1dce526bde3a73ab8c0b5"},
+    {file = "faiss_cpu-1.7.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:17b7fa7194a228a84929d9e6619d0e7dbf00cc0f717e3462253766f5e3d07de8"},
+    {file = "faiss_cpu-1.7.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dca531952a2e3eac56f479ff22951af4715ee44788a3fe991d208d766d3f95f3"},
+    {file = "faiss_cpu-1.7.4-cp310-cp310-win_amd64.whl", hash = "sha256:7173081d605e74766f950f2e3d6568a6f00c53f32fd9318063e96728c6c62821"},
+    {file = "faiss_cpu-1.7.4-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:d0bbd6f55d7940cc0692f79e32a58c66106c3c950cee2341b05722de9da23ea3"},
+    {file = "faiss_cpu-1.7.4-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e13c14280376100f143767d0efe47dcb32618f69e62bbd3ea5cd38c2e1755926"},
+    {file = "faiss_cpu-1.7.4-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c521cb8462f3b00c0c7dfb11caff492bb67816528b947be28a3b76373952c41d"},
+    {file = "faiss_cpu-1.7.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:afdd9fe1141117fed85961fd36ee627c83fc3b9fd47bafb52d3c849cc2f088b7"},
+    {file = "faiss_cpu-1.7.4-cp311-cp311-win_amd64.whl", hash = "sha256:2ff7f57889ea31d945e3b87275be3cad5d55b6261a4e3f51c7aba304d76b81fb"},
+    {file = "faiss_cpu-1.7.4-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:eeaf92f27d76249fb53c1adafe617b0f217ab65837acf7b4ec818511caf6e3d8"},
+    {file = "faiss_cpu-1.7.4-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:102b1bd763e9b0c281ac312590af3eaf1c8b663ccbc1145821fe6a9f92b8eaaf"},
+    {file = "faiss_cpu-1.7.4-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5512da6707c967310c46ff712b00418b7ae28e93cb609726136e826e9f2f14fa"},
+    {file = "faiss_cpu-1.7.4-cp37-cp37m-win_amd64.whl", hash = "sha256:0c2e5b9d8c28c99f990e87379d5bbcc6c914da91ebb4250166864fd12db5755b"},
+    {file = "faiss_cpu-1.7.4-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:43f67f325393145d360171cd98786fcea6120ce50397319afd3bb78be409fb8a"},
+    {file = "faiss_cpu-1.7.4-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:6a4e4af194b8fce74c4b770cad67ad1dd1b4673677fc169723e4c50ba5bd97a8"},
+    {file = "faiss_cpu-1.7.4-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:31bfb7b9cffc36897ae02a983e04c09fe3b8c053110a287134751a115334a1df"},
+    {file = "faiss_cpu-1.7.4-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:52d7de96abef2340c0d373c1f5cbc78026a3cebb0f8f3a5920920a00210ead1f"},
+    {file = "faiss_cpu-1.7.4-cp38-cp38-win_amd64.whl", hash = "sha256:699feef85b23c2c729d794e26ca69bebc0bee920d676028c06fd0e0becc15c7e"},
+    {file = "faiss_cpu-1.7.4-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:559a0133f5ed44422acb09ee1ac0acffd90c6666d1bc0d671c18f6e93ad603e2"},
+    {file = "faiss_cpu-1.7.4-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:ea1d71539fe3dc0f1bed41ef954ca701678776f231046bf0ca22ccea5cf5bef6"},
+    {file = "faiss_cpu-1.7.4-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:12d45e0157024eb3249842163162983a1ac8b458f1a8b17bbf86f01be4585a99"},
+    {file = "faiss_cpu-1.7.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f0eab359e066d32c874f51a7d4bf6440edeec068b7fe47e6d803c73605a8b4c"},
+    {file = "faiss_cpu-1.7.4-cp39-cp39-win_amd64.whl", hash = "sha256:98459ceeeb735b9df1a5b94572106ffe0a6ce740eb7e4626715dd218657bb4dc"},
+]
+
+[[package]]
 name = "fastavro"
 version = "1.8.2"
 description = "Fast read/write of AVRO files"
@@ -1917,6 +1951,51 @@ files = [
 doc = ["reno", "sphinx", "tornado (>=4.5)"]
 
 [[package]]
+name = "tiktoken"
+version = "0.5.1"
+description = "tiktoken is a fast BPE tokeniser for use with OpenAI's models"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "tiktoken-0.5.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2b0bae3fd56de1c0a5874fb6577667a3c75bf231a6cef599338820210c16e40a"},
+    {file = "tiktoken-0.5.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e529578d017045e2f0ed12d2e00e7e99f780f477234da4aae799ec4afca89f37"},
+    {file = "tiktoken-0.5.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:edd2ffbb789712d83fee19ab009949f998a35c51ad9f9beb39109357416344ff"},
+    {file = "tiktoken-0.5.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e4c73d47bdc1a3f1f66ffa019af0386c48effdc6e8797e5e76875f6388ff72e9"},
+    {file = "tiktoken-0.5.1-cp310-cp310-musllinux_1_1_aarch64.whl", hash = "sha256:46b8554b9f351561b1989157c6bb54462056f3d44e43aa4e671367c5d62535fc"},
+    {file = "tiktoken-0.5.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:92ed3bbf71a175a6a4e5fbfcdb2c422bdd72d9b20407e00f435cf22a68b4ea9b"},
+    {file = "tiktoken-0.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:714efb2f4a082635d9f5afe0bf7e62989b72b65ac52f004eb7ac939f506c03a4"},
+    {file = "tiktoken-0.5.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:a10488d1d1a5f9c9d2b2052fdb4cf807bba545818cb1ef724a7f5d44d9f7c3d4"},
+    {file = "tiktoken-0.5.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:8079ac065572fe0e7c696dbd63e1fdc12ce4cdca9933935d038689d4732451df"},
+    {file = "tiktoken-0.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7ef730db4097f5b13df8d960f7fdda2744fe21d203ea2bb80c120bb58661b155"},
+    {file = "tiktoken-0.5.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:426e7def5f3f23645dada816be119fa61e587dfb4755de250e136b47a045c365"},
+    {file = "tiktoken-0.5.1-cp311-cp311-musllinux_1_1_aarch64.whl", hash = "sha256:323cec0031358bc09aa965c2c5c1f9f59baf76e5b17e62dcc06d1bb9bc3a3c7c"},
+    {file = "tiktoken-0.5.1-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:5abd9436f02e2c8eda5cce2ff8015ce91f33e782a7423de2a1859f772928f714"},
+    {file = "tiktoken-0.5.1-cp311-cp311-win_amd64.whl", hash = "sha256:1fe99953b63aabc0c9536fbc91c3c9000d78e4755edc28cc2e10825372046a2d"},
+    {file = "tiktoken-0.5.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:dcdc630461927718b317e6f8be7707bd0fc768cee1fdc78ddaa1e93f4dc6b2b1"},
+    {file = "tiktoken-0.5.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:1f2b3b253e22322b7f53a111e1f6d7ecfa199b4f08f3efdeb0480f4033b5cdc6"},
+    {file = "tiktoken-0.5.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:43ce0199f315776dec3ea7bf86f35df86d24b6fcde1babd3e53c38f17352442f"},
+    {file = "tiktoken-0.5.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a84657c083d458593c0235926b5c993eec0b586a2508d6a2020556e5347c2f0d"},
+    {file = "tiktoken-0.5.1-cp38-cp38-musllinux_1_1_aarch64.whl", hash = "sha256:c008375c0f3d97c36e81725308699116cd5804fdac0f9b7afc732056329d2790"},
+    {file = "tiktoken-0.5.1-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:779c4dea5edd1d3178734d144d32231e0b814976bec1ec09636d1003ffe4725f"},
+    {file = "tiktoken-0.5.1-cp38-cp38-win_amd64.whl", hash = "sha256:b5dcfcf9bfb798e86fbce76d40a1d5d9e3f92131aecfa3d1e5c9ea1a20f1ef1a"},
+    {file = "tiktoken-0.5.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:9b180a22db0bbcc447f691ffc3cf7a580e9e0587d87379e35e58b826ebf5bc7b"},
+    {file = "tiktoken-0.5.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:2b756a65d98b7cf760617a6b68762a23ab8b6ef79922be5afdb00f5e8a9f4e76"},
+    {file = "tiktoken-0.5.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ba9873c253ca1f670e662192a0afcb72b41e0ba3e730f16c665099e12f4dac2d"},
+    {file = "tiktoken-0.5.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:74c90d2be0b4c1a2b3f7dde95cd976757817d4df080d6af0ee8d461568c2e2ad"},
+    {file = "tiktoken-0.5.1-cp39-cp39-musllinux_1_1_aarch64.whl", hash = "sha256:709a5220891f2b56caad8327fab86281787704931ed484d9548f65598dea9ce4"},
+    {file = "tiktoken-0.5.1-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:5d5a187ff9c786fae6aadd49f47f019ff19e99071dc5b0fe91bfecc94d37c686"},
+    {file = "tiktoken-0.5.1-cp39-cp39-win_amd64.whl", hash = "sha256:e21840043dbe2e280e99ad41951c00eff8ee3b63daf57cd4c1508a3fd8583ea2"},
+    {file = "tiktoken-0.5.1.tar.gz", hash = "sha256:27e773564232004f4f810fd1f85236673ec3a56ed7f1206fc9ed8670ebedb97a"},
+]
+
+[package.dependencies]
+regex = ">=2022.1.18"
+requests = ">=2.26.0"
+
+[package.extras]
+blobfile = ["blobfile (>=2)"]
+
+[[package]]
 name = "tokenizers"
 version = "0.13.3"
 description = "Fast and Customizable Tokenizers"
@@ -2267,4 +2346,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "fbbf24cddc21046709e03cacd4374e75c2f189a96d3d3f15738e1987af35492a"
+content-hash = "a4c04603afe25a866b78700df2872d18523e66942fe27d9f775beb5337ab229f"

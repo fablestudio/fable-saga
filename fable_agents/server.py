@@ -20,6 +20,8 @@ api.sio = sio
 
 logger = logging.getLogger('__name__')
 
+observers = ['wyatt_cooper']
+
 async def index(request):
     """Serve the client-side application."""
     with open('index.html') as f:
@@ -75,6 +77,16 @@ async def message(sid, message_type, message_data):
         updates = [models.StatusUpdate.from_dict(dt, json.loads(u)) for u in updates_raw]
         api.memory_datastore.add_status_updates(dt, updates)
 
+        for observer in observers:
+            persona = api.memory_datastore.personas[observer]
+            self_update = [u for u in updates if u.guid == persona.guid][0]
+            def callback(response):
+                print("CALLBACK:", self_update.guid)
+                print(response)
+
+            await api.gaia.create_observations(self_update, updates, callback)
+
+
     else:
         logger.warning("handler not found for message type:" + msg.type)
 
@@ -108,17 +120,31 @@ async def internal_tick():
 async def command_interface():
     loop = asyncio.get_event_loop()
     while True:
-        user_input = await loop.run_in_executor(None, input, 'Enter something: ')
-        if (user_input == 'observe'):
+        user_input = await loop.run_in_executor(None, input)
+        if user_input.startswith('observe'):
+            args = user_input.split(' ')
+            if len(args) < 2:
+                print("Please specify a persona to observe.")
+                continue
+            if args[1] not in api.memory_datastore.personas:
+                print(f"Persona {args[1]} not found.")
+                continue
+
+            persona = api.memory_datastore.personas[args[1]]
             updates = api.memory_datastore.status_updates[api.memory_datastore.last_status_update()]
-            self_update = updates.pop()
+            self_update = [u for u in updates if u.guid == persona.guid][0]
             def callback(response):
                 print("CALLBACK:", self_update.guid)
                 print(response)
 
             await api.gaia.create_observations(self_update, updates, callback)
+        elif user_input.startswith('recall'):
+            context = user_input.replace('recall ', '')
+            api.memory_datastore.vector_memory
+            memories = api.memory_datastore.vector_memory.load_memory_variables({'context': context})
+            print("RECALL:", memories)
         else:
-            print(f'You entered: {user_input}')
+            print(f'Command not found: {user_input}')
 
 
 app.router.add_static('/static', 'static')
