@@ -82,3 +82,42 @@ class Vector3:
     @staticmethod
     def distance(v1, v2):
         return ((v1.x - v2.x)**2 + (v1.y - v2.y)**2 + (v1.z - v2.z)**2)**0.5
+
+@define(slots=True)
+class ObservationEvent:
+    timestamp: datetime.datetime
+    observer_guid: str
+    persona_guid: str
+    action: str
+    action_step: str
+    distance: float
+    summary: str
+    importance: int
+
+    @staticmethod
+    def from_status_update(update: StatusUpdate, observer_update: StatusUpdate) -> 'ObservationEvent':
+        params = {
+            'observer_guid': observer_update.guid,
+            'timestamp': update.timestamp,
+            'persona_guid': update.guid,
+            'action': update.sequence,
+            'action_step': update.sequence_step,
+            'distance': Vector3.distance(update.location,  observer_update.location),
+            'summary': '',
+            'importance': 0
+        }
+        return ObservationEvent(**params)
+
+    @staticmethod
+    def from_dict(obj) -> 'ObservationEvent':
+        params = {
+            'observer_guid': obj['observer_guid'],
+            'timestamp': obj['timestamp'],
+            'persona_guid': obj['persona_guid'],
+            'action': obj['action'],
+            'action_step': obj['action_step'],
+            'distance': obj['distance'],
+            'summary': obj.get('summary', ''),
+            'importance': obj.get('importance', 0)
+        }
+        return ObservationEvent(**params)

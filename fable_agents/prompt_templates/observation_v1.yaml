@@ -11,8 +11,8 @@ template: |
     Many characters exist in this world doing various activities right now. Here are some of the ones you observe:
     {update_options}
   
-    Staying true to your character's personality and circumstance, which other activities do you notice and do you react to them?
-    If an item isn't important to your character, you can ignore it. If you notice something, you can react to it or use an empty string to indicate no reaction.
+    Staying true to your character's personality and circumstance, which activities do you notice and how important are they?
+    If an item isn't important at all to your character, you can ignore it.
     
     Respond to each activity you observer using the following json list. Do not make up new characters or activities:
-    {{[{{"guid": "<character_id of the action>", "summary_of_activity": "<summary of what you notice>", "reaction": "<reaction to what you notice>"}}]}}
+    {{[{{"guid": "<character_id of the action>", "summary_of_activity": "<summary of what you notice>", "importance": "<int between 0 and 10>"}}]}}

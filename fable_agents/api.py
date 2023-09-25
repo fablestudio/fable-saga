@@ -2,15 +2,16 @@ import json
 from dataclasses import dataclass
 import random
 from pprint import pprint
-from typing import List, Callable, Optional, Any
-from models import Persona, Vector3, StatusUpdate, Message
-from datastore import memory_datastore
+from typing import List, Callable, Optional, Any, Dict
+
+from cattr import unstructure
+
+from fable_agents import ai
+from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent
+import datastore
 import socketio
-import asyncio
-import time
 
 from langchain.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.prompts import load_prompt
 
@@ -32,18 +33,25 @@ class Format:
             'Summary': persona.summary,
             'BackStory': persona.backstory
         }
+    @staticmethod
+    def observation_event(event: ObservationEvent):
+        return {
+            'persona_guid': event.persona_guid,
+            'timestamp': event.timestamp.isoformat(),
+            'action': event.action,
+            'action_step': event.action_step,
+            'distance': str(round(event.distance, 2)) + 'm',
+        }
 
     @staticmethod
-    def observation_event(event: StatusUpdate, observer_location: Vector3):
-        distance = Vector3.distance(event.location, observer_location)
-        if (distance):
-            distance = str(round(distance, 1)) + "m"
-        return {
-            'persona_guid': event.guid,
-            'action': event.sequence,
-            'action_step': event.sequence_step,
-            'distance': distance,
+    def observer(status_update: StatusUpdate):
+        out = {
+            'action': status_update.sequence,
+            'action_step': status_update.sequence_step,
         }
+        if status_update.location is not None and status_update.destination is not None:
+            out['destination_distance'] = str(float(Vector3.distance(status_update.location, status_update.destination))) + "m",
+
 
 class GaiaAPI:
 
@@ -56,7 +64,7 @@ class GaiaAPI:
         :param persona_guids: unique identifiers for the personas.
         :param callback: function to call when the conversation is created.
         """
-        initiator_persona = memory_datastore.personas.get(persona_guid, None)
+        initiator_persona = datastore.personas.personas.get(persona_guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             if on_complete is not None:
@@ -68,7 +76,7 @@ class GaiaAPI:
 
         # TODO: Using all personas results in too much text.
         # pick 5 random personas
-        items = list(memory_datastore.personas.items())
+        items = list(datastore.personas.personas.items())
         random.shuffle(items)
         for guid, persona_option in items[:5]:
             options.append(Format.persona(persona_option))
@@ -80,51 +88,73 @@ class GaiaAPI:
         if on_complete is not None:
             on_complete(resp)
 
-    async def create_observations(self, observer_update: StatusUpdate, updates_to_consider: List[StatusUpdate], on_complete: Callable[[Message], None]):
+    async def create_observations(self, observer_update: StatusUpdate, updates_to_consider: List[StatusUpdate]) -> List[Dict[str, Any]]:
         """
         Create a new observation.
         :param persona_guids: unique identifiers for the personas.
         :param callback: function to call when the conversation is created.
         """
-        initiator_persona = memory_datastore.personas.get(observer_update.guid, None)
+        initiator_persona = datastore.personas.personas.get(observer_update.guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
-            if on_complete is not None:
-                on_complete(Message('error', {'error': 'persona not found.'}))
-            return
+            return []
 
         # Create a list of personas to send to the server as options.
-        observation_events = {}
+        observation_events: Dict[str, ObservationEvent] = {}
 
         # sort by distance for now. Later we might include a priority metric as well.
         updates_to_consider.sort(key=lambda x: Vector3.distance(x.location, observer_update.location))
         for update in updates_to_consider[:self.observation_limit]:
             if update.location is not None and Vector3.distance(update.location, observer_update.location) <= self.observation_distance:
-                observation_events[update.guid] = Format.observation_event(update, observer_update.location)
+                observation_events[update.guid] = ObservationEvent.from_status_update(update, observer_update)
 
         prompt = load_prompt("prompt_templates/observation_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
         chain = LLMChain(llm=llm, prompt=prompt)
         pprint(observation_events)
         resp = await chain.arun(self_description=json.dumps(Format.persona(initiator_persona)),
-                                self_update=json.dumps(Format.observation_event(observer_update, observer_update.location)),
-                                update_options=json.dumps(list(observation_events.values())))
+                                self_update=json.dumps(Format.observer(observer_update)),
+                                update_options=json.dumps([Format.observation_event(evt) for evt in observation_events.values()]))
+
+        # Create observations for the observer.
+        intelligent_observations = [ObservationEvent]
         if resp:
             try:
                 intelligent_observations = json.loads(resp)
             except json.decoder.JSONDecodeError as e:
                 print("Error decoding response", e, resp)
-                intelligent_observations = []
+
             for observation in intelligent_observations:
                 guid = observation.get('guid', None)
-                if guid in memory_datastore.personas.keys():
-                    update = observation_events.get(guid, None)
-                    summary = observation.get('summary_of_activity', None)
-                    response = observation.get('reaction', None)
-                    memory_datastore.vector_memory.save_context({"observation": update, "summary": summary}, {"response": response})
+                if guid in datastore.personas.personas.keys() and observation_events.get(guid, None):
+                    event = observation_events[guid]
+                    event.summary = observation.get('summary_of_activity', '')
+                    event.importance = observation.get('summary_of_activity', 0)
+                    datastore.memory_vectors.memory_vectors.save_context({'observation_event': event})
+        return intelligent_observations
 
-        if on_complete is not None:
-            on_complete(resp)
+    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent]) -> List[Dict[str, Any]]:
+        initiator_persona = datastore.personas.get(observer_update.guid, None)
+        if initiator_persona is None:
+            print('Error: persona not found.')
+            return []
+
+        self_description = Format.persona(initiator_persona)
+
+        # memories = datastore.memory_vectors.load_memory_variables({'context': context})
+
+        action_options = ai.Actions
+
+        prompt = load_prompt("prompt_templates/actions_v1.yaml")
+        llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
+        chain = LLMChain(llm=llm, prompt=prompt)
+        resp = await chain.arun(self_description=json.dumps(Format.persona(initiator_persona)),
+                                self_update=json.dumps(Format.observer(observer_update)),
+                                update_options=json.dumps([Format.observation_event(evt) for evt in observations]))
+        print(resp)
+
+
+
 
 
 class SimulationAPI:
@@ -146,7 +176,7 @@ class SimulationAPI:
                 return
             for json_rep in response.data['personas']:
                 persona = Persona.from_json(json_rep)
-                memory_datastore.personas[persona.guid] = persona
+                datastore.personas.personas[persona.guid] = persona
 
             # TODO: This should return when this process is complete.
             if on_complete is not None:

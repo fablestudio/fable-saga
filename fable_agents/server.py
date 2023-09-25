@@ -1,7 +1,6 @@
 import asyncio
 import json
 import random
-import datetime
 from dateutil import parser
 
 from aiohttp import web
@@ -20,7 +19,7 @@ api.sio = sio
 
 logger = logging.getLogger('__name__')
 
-observers = ['wyatt_cooper']
+auto_observer_guids = ['wyatt_cooper']
 
 async def index(request):
     """Serve the client-side application."""
@@ -75,16 +74,18 @@ async def message(sid, message_type, message_data):
         #dt = datetime.datetime.fromisoformat(timestamp_str)
         dt = parser.parse(timestamp_str)
         updates = [models.StatusUpdate.from_dict(dt, json.loads(u)) for u in updates_raw]
-        api.memory_datastore.add_status_updates(dt, updates)
+        api.datastore.status_updates.add_updates(dt, updates)
 
-        for observer in observers:
-            persona = api.memory_datastore.personas[observer]
+        for observer_guid in auto_observer_guids:
+            persona = api.datastore.personas.personas[observer_guid]
             self_update = [u for u in updates if u.guid == persona.guid][0]
-            def callback(response):
-                print("CALLBACK:", self_update.guid)
-                print(response)
 
-            await api.gaia.create_observations(self_update, updates, callback)
+            # Create observations for the observer.
+            observations = await api.gaia.create_observations(self_update, updates)
+            print("CALLBACK:", self_update.guid)
+            print(observations)
+
+
 
 
     else:
@@ -104,12 +105,12 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
 
-        if  len(api.memory_datastore.personas) == 0:
+        if  len(api.datastore.personas.personas) == 0:
             await api.simulation.reload_personas([], None)
             await asyncio.sleep(1)
             continue
         else:
-            initiator_persona = api.memory_datastore.random_personas(1)[0]
+            initiator_persona = api.datastore.personas.random_personas(1)[0]
             def handler(conversation):
                 print("speaker", initiator_persona.guid)
                 print("conversation", conversation)
@@ -126,22 +127,21 @@ async def command_interface():
             if len(args) < 2:
                 print("Please specify a persona to observe.")
                 continue
-            if args[1] not in api.memory_datastore.personas:
+            if args[1] not in api.datastore.personas:
                 print(f"Persona {args[1]} not found.")
                 continue
 
-            persona = api.memory_datastore.personas[args[1]]
-            updates = api.memory_datastore.status_updates[api.memory_datastore.last_status_update()]
+            persona = api.datastore.personas[args[1]]
+            updates = api.datastore.status_updates[api.datastore.status_updates.last_status_update()]
             self_update = [u for u in updates if u.guid == persona.guid][0]
             def callback(response):
                 print("CALLBACK:", self_update.guid)
                 print(response)
 
-            await api.gaia.create_observations(self_update, updates, callback)
+            await api.gaia.create_observations(self_update, updates)
         elif user_input.startswith('recall'):
             context = user_input.replace('recall ', '')
-            api.memory_datastore.vector_memory
-            memories = api.memory_datastore.vector_memory.load_memory_variables({'context': context})
+            memories = api.datastore.memory_vectors.load_memory_variables({'context': context})
             print("RECALL:", memories)
         else:
             print(f'Command not found: {user_input}')
