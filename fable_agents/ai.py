@@ -14,19 +14,28 @@ Actions = {
         'description': "Go to a character's location",
         'parameters': {
             'persona_id': 'str: guid of the persona to go to',
+            'goal': 'str: goal of the movement',
         },
     },
-    'converseWith': {
+    'converse_with': {
         'description': "Converse with a character",
         'parameters': {
             'persona_id': 'str: guid of the persona to converse with',
             'topic': 'str: topic of the conversation',
+            'goal': 'str: goal of the conversation',
         },
     },
     'wait': {
         'description': "Wait for a period of time",
         'parameters': {
             'duration': 'int: number of seconds to wait',
+            'goal': 'str: goal of the waiting',
+        },
+    },
+    'continue': {
+        'description': "Don't do anything new, just continue the current action",
+        'parameters': {
+            'goal': 'str: goal of the continuation',
         },
     },
 }

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple, Optional
 import models
 import random
 import datetime
@@ -27,7 +27,22 @@ class MemoryVectors:
 class ObservationMemory():
 
     def __init__(self):
-        self.observation_memory: Dict[str, Dict[datetime, models.ObservationEvent]] = {}
+        self.observation_memory: Dict[str, Dict[datetime, List[models.ObservationEvent]]] = {}
+
+    def set_observations(self, observer_guid, timestamp, observations: List[models.ObservationEvent]):
+        if observer_guid not in self.observation_memory:
+            self.observation_memory[observer_guid] = {}
+        self.observation_memory[observer_guid][timestamp] = observations
+
+    def last_observations(self, observer_guid) -> Tuple[Optional[datetime.datetime], List[models.ObservationEvent]]:
+        persona_observations = self.observation_memory.get(observer_guid, None)
+        if persona_observations is None:
+            return None, []
+        timestamps = list(persona_observations.keys())
+        if len(timestamps) == 0:
+            return None, []
+        timestamp = timestamps[-1]
+        return timestamp, self.observation_memory[observer_guid][timestamp]
 
 
 class Personas:
@@ -52,8 +67,14 @@ class StatusUpdates:
             self.status_updates[timestamp] = []
         self.status_updates[timestamp].extend(updates)
 
-    def last_update(self):
-        return list(self.status_updates)[-1]
+    def last_updates(self) -> Tuple[datetime.datetime, List[models.StatusUpdate]]:
+        timestamp = list(self.status_updates)[-1]
+        return timestamp, self.status_updates[timestamp]
+
+    def last_update_for_persona(self, persona_guid) -> Tuple[datetime.datetime, models.StatusUpdate]:
+        timestamp, status_updates = self.last_updates()
+        updates = [u for u in self.status_updates[timestamp] if u.guid == persona_guid]
+        return timestamp, updates[0]
 
 
 observation_memory = ObservationMemory()

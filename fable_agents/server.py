@@ -110,12 +110,13 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
         else:
-            initiator_persona = api.datastore.personas.random_personas(1)[0]
-            def handler(conversation):
-                print("speaker", initiator_persona.guid)
-                print("conversation", conversation)
-
-            await api.gaia.create_conversation(initiator_persona.guid, handler)
+            pass
+            # initiator_persona = api.datastore.personas.random_personas(1)[0]
+            # def handler(conversation):
+            #     print("speaker", initiator_persona.guid)
+            #     print("conversation", conversation)
+            #
+            # await api.gaia.create_conversation(initiator_persona.guid, handler)
         await asyncio.sleep(5)
 
 async def command_interface():
@@ -134,17 +135,30 @@ async def command_interface():
             persona = api.datastore.personas[args[1]]
             updates = api.datastore.status_updates[api.datastore.status_updates.last_status_update()]
             self_update = [u for u in updates if u.guid == persona.guid][0]
-            def callback(response):
-                print("CALLBACK:", self_update.guid)
-                print(response)
 
             await api.gaia.create_observations(self_update, updates)
         elif user_input.startswith('recall'):
             context = user_input.replace('recall ', '')
-            memories = api.datastore.memory_vectors.load_memory_variables({'context': context})
+            memories = api.datastore.memory_vectors.memory_vectors.load_memory_variables({'context': context})
             print("RECALL:", memories)
+
+        elif user_input.startswith('react'):
+            args = user_input.split(' ')
+            if len(args) < 2:
+                print("Please specify a persona to react.")
+                continue
+            reactor_guid = args[1]
+            if reactor_guid not in api.datastore.personas.personas:
+                print(f"Persona {args[1]} not found.")
+                continue
+            last_ts, last_observations = api.datastore.observation_memory.last_observations(reactor_guid)
+            last_ts, last_update = api.datastore.status_updates.last_update_for_persona(reactor_guid)
+            reactions = await api.gaia.create_reactions(last_update, last_observations)
+            print("REACTIONS:", reactions)
+
         else:
             print(f'Command not found: {user_input}')
+
 
 
 app.router.add_static('/static', 'static')

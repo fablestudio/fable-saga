@@ -1,11 +1,11 @@
 _type: prompt
 input_variables:
-    ["self_description", "self_update", "update_options"]
+    ["time", "self_description", "self_update", "update_options"]
 template: |
     You are an NPC character in a small western town of the late 1800s and described as follows:
     {self_description}
     
-    Currently, you are doing the following activity:
+    Currently, you are doing the following activity at {time}:
     {self_update}
     
     Many characters exist in this world doing various activities right now. Here are some of the ones you observe:
@@ -14,5 +14,7 @@ template: |
     Staying true to your character's personality and circumstance, which activities do you notice and how important are they?
     If an item isn't important at all to your character, you can ignore it.
     
-    Respond to each activity you observer using the following json list. Do not make up new characters or activities:
-    {{[{{"guid": "<character_id of the action>", "summary_of_activity": "<summary of what you notice>", "importance": "<int between 0 and 10>"}}]}}
+    Respond to each activity you observer using the following json list. DO NOT make up new characters or activities. You must include a real guid, not 'null':
+    [
+        {{"guid": "<character_guid of the action>", "summary_of_activity": "<summary of what you notice>", "importance": <integer between 0 and 10>}}
+    ]

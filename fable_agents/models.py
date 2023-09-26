@@ -52,7 +52,6 @@ class StatusUpdate:
 
     @staticmethod
     def from_dict(timestamp: datetime.datetime, obj:dict):
-        print(obj)
         params = {
             'timestamp': timestamp,
             'guid': obj['id'],
