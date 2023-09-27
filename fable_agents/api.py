@@ -56,8 +56,8 @@ class Format:
             'action': status_update.sequence,
             'action_step': status_update.sequence_step,
         }
-        if status_update.location is not None and status_update.destination is not None:
-            out['destination_distance'] = str(float(Vector3.distance(status_update.location, status_update.destination))) + "m",
+        if status_update.location.vector3 is not None and status_update.destination is not None:
+            out['destination_distance'] = str(float(Vector3.distance(status_update.location.vector3, status_update.destination))) + "m",
 
     @staticmethod
     def simple_datetime(dt: datetime):
@@ -114,9 +114,9 @@ class GaiaAPI:
         observation_events: Dict[str, ObservationEvent] = {}
 
         # sort by distance for now. Later we might include a priority metric as well.
-        updates_to_consider.sort(key=lambda x: Vector3.distance(x.location, observer_update.location))
+        updates_to_consider.sort(key=lambda x: Vector3.distance(x.location.vector3, observer_update.location.vector3))
         for update in updates_to_consider[:self.observation_limit]:
-            if update.location is not None and Vector3.distance(update.location, observer_update.location) <= self.observation_distance:
+            if update.location is not None and Vector3.distance(update.location.vector3, observer_update.location.vector3) <= self.observation_distance:
                 observation_events[update.guid] = ObservationEvent.from_status_update(update, observer_update)
 
         prompt = load_prompt("prompt_templates/observation_v1.yaml")
