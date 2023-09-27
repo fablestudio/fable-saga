@@ -19,7 +19,7 @@ api.sio = sio
 
 logger = logging.getLogger('__name__')
 
-auto_observer_guids = ['wyatt_cooper']
+auto_observer_guids = ['sarah_brown']
 
 async def index(request):
     """Serve the client-side application."""
@@ -60,11 +60,27 @@ async def message(sid, message_type, message_data):
     msg = models.Message(message_type, parsed_data)
 
     if msg.type == 'choose-sequence':
-        choice = random.randint(0, len(msg.data['options']) - 1)
-        logger.info("choice:" + msg.data['options'][choice])
-        # Send back the choice.
-        msg = models.Message('choose-sequence-response', {"choice": choice})
-        return msg.type, json.dumps(msg.data)
+        use_random = False
+
+        if use_random:
+            # Choose a random option.
+            choice = random.randint(0, len(msg.data['options']) - 1)
+            logger.info("choice:" + msg.data['options'][choice])
+            # Send back the choice.
+            msg = models.Message('choose-sequence-response', {"choice": choice})
+            return msg.type, json.dumps(msg.data)
+        else:
+            # Generate one or more options.
+            persona_guid = msg.data['persona_guid']
+            if persona_guid not in api.datastore.personas.personas:
+                print(f"Persona {persona_guid} not found.")
+                return
+            last_ts, last_observations = api.datastore.observation_memory.last_observations(persona_guid)
+            last_ts, last_update = api.datastore.status_updates.last_update_for_persona(persona_guid)
+            options = await api.gaia.create_reactions(last_update, last_observations, ignore_continue=True)
+            msg = models.Message('choose-sequence-response', {"options": options})
+            return msg.type, json.dumps(msg.data)
+
 
     elif msg.type == 'character-status-update-tick':
         updates_raw = msg.data.get("updates", [])

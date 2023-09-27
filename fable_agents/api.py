@@ -150,7 +150,7 @@ class GaiaAPI:
         datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, observation_events.values())
         return intelligent_observations
 
-    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent]) -> List[Dict[str, Any]]:
+    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent], ignore_continue: bool = False) -> List[Dict[str, Any]]:
         initiator_persona = datastore.personas.personas.get(observer_update.guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
@@ -158,7 +158,11 @@ class GaiaAPI:
 
         # memories = datastore.memory_vectors.load_memory_variables({'context': context})
 
-        action_options = ai.Actions
+        # Create a list of actions to consider.
+        action_options = ai.Actions.copy()
+        # Remove continue if we are not allowed to continue.
+        if ignore_continue:
+            del action_options['continue']
 
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
@@ -169,10 +173,8 @@ class GaiaAPI:
                                 self_update=json.dumps(Format.observer(observer_update)),
                                 observations=json.dumps([Format.observation_event(evt) for evt in observations]),
                                 action_options=json.dumps(action_options))
-        print(resp)
-
-
-
+        options = json.loads(resp)
+        return options
 
 
 class SimulationAPI:

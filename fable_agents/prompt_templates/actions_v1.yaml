@@ -13,7 +13,12 @@ template: |
   
     Staying true to your character's personality and circumstance, choose from the following action options to react to the activity:
     {action_options}
+        
+    Respond with a list of between one and four actions from the options. Do not make up new characters or activities:
     
-    Take careful note of what you are already doing and if you want to continue doing it, just choose the "continue" action.
-    
-    Respond by choosing a single action and providing it's parameters as json. Do not make up new characters or activities:
+    Use the following json format:
+    [
+        {{"action": <choice of action>, "parameters": {{<action parameters as json>}}}}
+    ]
+
+#    Take careful note of what you are already doing and if you want to continue doing it, just choose the "continue" action.

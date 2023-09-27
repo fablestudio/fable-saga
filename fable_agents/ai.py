@@ -13,14 +13,14 @@ Actions = {
     'goto': {
         'description': "Go to a character's location",
         'parameters': {
-            'persona_id': 'str: guid of the persona to go to',
+            'persona_guid': 'str: guid of the persona to go to',
             'goal': 'str: goal of the movement',
         },
     },
     'converse_with': {
         'description': "Converse with a character",
         'parameters': {
-            'persona_id': 'str: guid of the persona to converse with',
+            'persona_guid': 'str: guid of the persona to converse with',
             'topic': 'str: topic of the conversation',
             'goal': 'str: goal of the conversation',
         },
