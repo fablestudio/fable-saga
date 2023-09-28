@@ -66,7 +66,7 @@ class StatusUpdate:
     sequence: str
     sequence_step: str
     location: Location
-    destination: 'Vector3'
+    destination: Location
 
     @staticmethod
     def from_dict(timestamp: datetime.datetime, obj: dict):
@@ -76,7 +76,7 @@ class StatusUpdate:
             'sequence': obj['sequence'],
             'sequence_step': obj['sequenceStep'],
             'location': Location.from_dict(obj['location']),
-            'destination': Vector3.from_dict(obj['destination'])
+            'destination': Location.from_dict(obj['destination'])
         }
         return StatusUpdate(**params)
 

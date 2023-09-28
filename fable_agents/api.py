@@ -56,8 +56,8 @@ class Format:
             'action': status_update.sequence,
             'action_step': status_update.sequence_step,
         }
-        if status_update.location.vector3 is not None and status_update.destination is not None:
-            out['destination_distance'] = str(float(Vector3.distance(status_update.location.vector3, status_update.destination))) + "m",
+        if status_update.location.vector3 is not None and status_update.destination is not None and status_update.destination.vector3 is not None:
+            out['destination_distance'] = str(float(Vector3.distance(status_update.location.vector3, status_update.destination.vector3))) + "m",
 
     @staticmethod
     def simple_datetime(dt: datetime):
