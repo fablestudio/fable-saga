@@ -42,25 +42,45 @@ class Message:
 
 
 @define(slots=True)
+class Location:
+    vector3: 'Vector3'
+    place: str
+    description: str
+
+    @staticmethod
+    def from_dict(obj):
+        if obj is None:
+            return None
+        params = {
+            'vector3': Vector3.from_dict(obj['vector3']),
+            'place': obj['place'],
+            'description': obj['description']
+        }
+        return Location(**params)
+
+
+@define(slots=True)
 class StatusUpdate:
     timestamp: datetime.datetime
     guid: str
     sequence: str
     sequence_step: str
-    location: 'Vector3'
-    destination: 'Vector3'
+    location: Location
+    destination: Location
 
     @staticmethod
-    def from_dict(timestamp: datetime.datetime, obj:dict):
+    def from_dict(timestamp: datetime.datetime, obj: dict):
         params = {
             'timestamp': timestamp,
             'guid': obj['id'],
             'sequence': obj['sequence'],
             'sequence_step': obj['sequenceStep'],
-            'location': Vector3.from_dict(obj['location']),
-            'destination': Vector3.from_dict(obj['destination'])
+            'location': Location.from_dict(obj['location']),
+            'destination': Location.from_dict(obj['destination'])
         }
         return StatusUpdate(**params)
+
+
 @define(slots=True)
 class Vector3:
     x: float
@@ -82,6 +102,7 @@ class Vector3:
     def distance(v1, v2):
         return ((v1.x - v2.x)**2 + (v1.y - v2.y)**2 + (v1.z - v2.z)**2)**0.5
 
+
 @define(slots=True)
 class ObservationEvent:
     timestamp: datetime.datetime
@@ -101,7 +122,7 @@ class ObservationEvent:
             'persona_guid': update.guid,
             'action': update.sequence,
             'action_step': update.sequence_step,
-            'distance': Vector3.distance(update.location,  observer_update.location),
+            'distance': Vector3.distance(update.location.vector3,  observer_update.location.vector3),
             'summary': '',
             'importance': 0
         }
