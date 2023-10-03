@@ -122,9 +122,9 @@ class GaiaAPI:
         prompt = load_prompt("prompt_templates/observation_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
         chain = LLMChain(llm=llm, prompt=prompt)
-        pprint(observation_events)
+        #pprint(observation_events)
         formatted_obs_events = json.dumps([Format.observation_event(evt) for evt in observation_events.values()])
-        print("create_observations:llm OBS::", formatted_obs_events)
+        #print("create_observations:llm OBS::", formatted_obs_events)
         resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
                                 self_description=json.dumps(Format.persona(initiator_persona)),
                                 self_update=json.dumps(Format.observer(observer_update)),
@@ -132,7 +132,7 @@ class GaiaAPI:
 
         # Create observations for the observer.
         intelligent_observations: [Dict[str, Any]] = []
-        print("create_observations:llm RESP::", resp)
+        #print("create_observations:llm RESP::", resp)
         if resp:
             try:
                 intelligent_observations = json.loads(resp)
@@ -167,7 +167,7 @@ class GaiaAPI:
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
         chain = LLMChain(llm=llm, prompt=prompt)
-        print([Format.observation_event(evt) for evt in observations])
+        #print([Format.observation_event(evt) for evt in observations])
         resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
                                 self_description=json.dumps(Format.persona(initiator_persona)),
                                 self_update=json.dumps(Format.observer(observer_update)),
@@ -188,7 +188,7 @@ class SimulationAPI:
         """
 
         def convert_to_personas(response: Message):
-            print("RESPONSE", response)
+            #print("RESPONSE", response)
             if (response.type != 'request-personas-response'):
                 print('Error: expected personas response.', response)
                 if on_complete is not None:

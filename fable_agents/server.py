@@ -19,7 +19,7 @@ api.sio = sio
 
 logger = logging.getLogger('__name__')
 
-auto_observer_guids = ['sarah_brown']
+auto_observer_guids = ['wyatt_cooper']
 
 async def index(request):
     """Serve the client-side application."""
@@ -78,6 +78,7 @@ async def message(sid, message_type, message_data):
             last_ts, last_observations = api.datastore.observation_memory.last_observations(persona_guid)
             last_ts, last_update = api.datastore.status_updates.last_update_for_persona(persona_guid)
             options = await api.gaia.create_reactions(last_update, last_observations, ignore_continue=True)
+            print("OPTIONS:", options)
             msg = models.Message('choose-sequence-response', {"options": options})
             return msg.type, json.dumps(msg.data)
 
@@ -98,8 +99,8 @@ async def message(sid, message_type, message_data):
 
             # Create observations for the observer.
             observations = await api.gaia.create_observations(self_update, updates)
-            print("CALLBACK:", self_update.guid)
-            print(observations)
+            #print("CALLBACK:", self_update.guid)
+            #print(observations)
 
     elif msg.type == 'character-conversation':
         conversation_raw = msg.data.get("conversation", None)
