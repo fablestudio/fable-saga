@@ -106,6 +106,35 @@ class SequenceStep:
 
 
 @define(slots=True)
+class Conversation:
+    timestamp: datetime.datetime
+    turns: ['ConversationTurn']
+
+    @staticmethod
+    def from_dict(timestamp: datetime.datetime, obj: dict):
+
+        params = {
+            'timestamp': timestamp,
+            'turns': [ConversationTurn.from_dict(turnData) for turnData in obj['turns']],
+        }
+        return Conversation(**params)
+
+
+@define(slots=True)
+class ConversationTurn:
+    guid: str
+    dialogue: str
+
+    @staticmethod
+    def from_dict(obj: dict):
+        params = {
+            'guid': obj['npcId'],
+            'dialogue': obj['dialogue'],
+        }
+        return ConversationTurn(**params)
+
+
+@define(slots=True)
 class Vector3:
     x: float
     y: float
