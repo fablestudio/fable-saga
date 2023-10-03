@@ -82,6 +82,30 @@ class StatusUpdate:
 
 
 @define(slots=True)
+class SequenceStep:
+    timestamp: datetime.datetime
+    guid: str
+    sequence: str
+    starting_step: str
+    completed_step: str
+    completed_step_duration: float
+    interrupted: bool
+
+    @staticmethod
+    def from_dict(timestamp: datetime.datetime, obj: dict):
+        params = {
+            'timestamp': timestamp,
+            'guid': obj['npcId'],
+            'sequence': obj['sequenceName'],
+            'starting_step': obj['startingStep'],
+            'completed_step': obj['completedStep'],
+            'completed_step_duration': obj['completedStepDurationMinutes'],
+            'interrupted': obj['interrupted']
+        }
+        return SequenceStep(**params)
+
+
+@define(slots=True)
 class Vector3:
     x: float
     y: float
