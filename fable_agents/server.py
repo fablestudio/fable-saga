@@ -101,8 +101,27 @@ async def message(sid, message_type, message_data):
             print("CALLBACK:", self_update.guid)
             print(observations)
 
+    elif msg.type == 'character-conversation':
+        conversation_raw = msg.data.get("conversation", None)
+        timestamp_str = msg.data.get("timestamp", '')
+        # This is a hack to get around the fact that datetime.fromisoformat doesn't work for all reasonable ISO strings in python 3.10
+        # See https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date which says 3.11 should fix this issue.
+        #dt = datetime.datetime.fromisoformat(timestamp_str)
+        dt = parser.parse(timestamp_str)
+        conversation = models.Conversation.from_dict(dt, json.loads(conversation_raw))
+        # TODO: Store the conversation
+        # api.datastore.conversations.add_conversation(dt, conversation)
 
-
+    elif msg.type == 'character-sequence-step':
+        sequence_raw = msg.data.get("sequence", None)
+        timestamp_str = msg.data.get("timestamp", '')
+        # This is a hack to get around the fact that datetime.fromisoformat doesn't work for all reasonable ISO strings in python 3.10
+        # See https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date which says 3.11 should fix this issue.
+        #dt = datetime.datetime.fromisoformat(timestamp_str)
+        dt = parser.parse(timestamp_str)
+        sequence = models.SequenceStep.from_dict(dt, json.loads(sequence_raw))
+        # TODO: Store the sequence
+        # api.datastore.sequences.add_sequence(dt, sequence)
 
     else:
         logger.warning("handler not found for message type:" + msg.type)
