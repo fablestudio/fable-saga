@@ -8,7 +8,7 @@ from typing import List, Callable, Optional, Any, Dict
 from cattr import unstructure
 
 from fable_agents import ai
-from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent
+from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate
 import datastore
 import socketio
 
@@ -63,6 +63,11 @@ class Format:
     def simple_datetime(dt: datetime):
         # Format the datetime as a string with the format: Monday, 12:00 PM
         return dt.strftime("%A, %I:%M %p")
+
+    @staticmethod
+    def sequence_update(sequence_update: SequenceUpdate):
+        return unstructure(sequence_update)
+
 
 class GaiaAPI:
 
@@ -150,7 +155,7 @@ class GaiaAPI:
         datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, observation_events.values())
         return intelligent_observations
 
-    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent], ignore_continue: bool = False) -> List[Dict[str, Any]]:
+    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent], sequences: [List[SequenceUpdate]], ignore_continue: bool = False) -> List[Dict[str, Any]]:
         initiator_persona = datastore.personas.personas.get(observer_update.guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
@@ -166,12 +171,13 @@ class GaiaAPI:
 
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
-        chain = LLMChain(llm=llm, prompt=prompt)
+        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
         #print([Format.observation_event(evt) for evt in observations])
         resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
                                 self_description=json.dumps(Format.persona(initiator_persona)),
                                 self_update=json.dumps(Format.observer(observer_update)),
                                 observations=json.dumps([Format.observation_event(evt) for evt in observations]),
+                                sequences=json.dumps([Format.sequence_update(seq) for seq in sequences]),
                                 action_options=json.dumps(action_options))
         options = json.loads(resp)
         return options
@@ -233,7 +239,5 @@ class SimulationAPI:
             await sio.emit('message', (type, json.dumps(data)))
 
 
-
-
-simulation = SimulationAPI()
-gaia = GaiaAPI()
+simulation: SimulationAPI = SimulationAPI()
+gaia: GaiaAPI = GaiaAPI()

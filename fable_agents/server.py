@@ -77,7 +77,8 @@ async def message(sid, message_type, message_data):
                 return
             last_ts, last_observations = api.datastore.observation_memory.last_observations(persona_guid)
             last_ts, last_update = api.datastore.status_updates.last_update_for_persona(persona_guid)
-            options = await api.gaia.create_reactions(last_update, last_observations, ignore_continue=True)
+            recent_sequences = api.datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
+            options = await api.gaia.create_reactions(last_update, last_observations, recent_sequences, ignore_continue=True)
             print("OPTIONS:", options)
             msg = models.Message('choose-sequence-response', {"options": options})
             return msg.type, json.dumps(msg.data)
@@ -114,15 +115,11 @@ async def message(sid, message_type, message_data):
         # api.datastore.conversations.add_conversation(dt, conversation)
 
     elif msg.type == 'character-sequence-step':
-        sequence_raw = msg.data.get("sequence", None)
-        timestamp_str = msg.data.get("timestamp", '')
-        # This is a hack to get around the fact that datetime.fromisoformat doesn't work for all reasonable ISO strings in python 3.10
-        # See https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date which says 3.11 should fix this issue.
-        #dt = datetime.datetime.fromisoformat(timestamp_str)
-        dt = parser.parse(timestamp_str)
-        sequence = models.SequenceStep.from_dict(dt, json.loads(sequence_raw))
-        # TODO: Store the sequence
-        # api.datastore.sequences.add_sequence(dt, sequence)
+        # Ignore sequences that are not for the auto observer.
+        update = models.SequenceUpdate.from_dict(msg.data)
+        if update.persona_guid not in auto_observer_guids:
+            return
+        api.datastore.sequence_updates.add_updates([update])
 
     else:
         logger.warning("handler not found for message type:" + msg.type)

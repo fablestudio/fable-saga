@@ -77,7 +77,24 @@ class StatusUpdates:
         return timestamp, updates[0]
 
 
+class SequenceUpdates:
+
+    def __init__(self):
+        self.sequence_updates: Dict[str, List[models.SequenceUpdate]] = {}
+
+    def add_updates(self, updates: List[models.SequenceUpdate]):
+        for update in updates:
+            persona_id = update.persona_guid
+            persona_updates = self.sequence_updates.get(persona_id, [])
+            persona_updates.append(update)
+            self.sequence_updates[persona_id] = persona_updates
+
+    def last_updates_for_persona(self, persona_id, n) -> List[models.SequenceUpdate]:
+        return self.sequence_updates.get(persona_id, [])[-n:]
+
+
 observation_memory = ObservationMemory()
 personas = Personas()
 status_updates = StatusUpdates()
+sequence_updates: SequenceUpdates = SequenceUpdates()
 memory_vectors = MemoryVectors()
