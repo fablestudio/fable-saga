@@ -80,6 +80,7 @@ async def message(sid, message_type, message_data):
             recent_sequences = api.datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
             options = await api.gaia.create_reactions(last_update, last_observations, recent_sequences, ignore_continue=True)
             print("OPTIONS:", options)
+            # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
             msg = models.Message('choose-sequence-response', {"options": options})
             return msg.type, json.dumps(msg.data)
 
@@ -150,6 +151,12 @@ async def internal_tick():
             #     print("conversation", conversation)
             #
             # await api.gaia.create_conversation(initiator_persona.guid, handler)
+
+        if  len(api.datastore.meta_affordances.affordances) == 0:
+            await api.simulation.reload_affordances([], None)
+            await asyncio.sleep(1)
+            continue
+
         await asyncio.sleep(5)
 
 async def command_interface():

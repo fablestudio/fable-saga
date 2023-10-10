@@ -56,6 +56,12 @@ class Personas:
         return [self.personas[k] for k in keys[:n]]
 
 
+class MetaAffordances:
+
+    def __init__(self):
+        self.affordances: Dict[str, models.MetaAffordanceProvider] = {}
+
+
 class StatusUpdates:
 
     def __init__(self):
@@ -95,6 +101,7 @@ class SequenceUpdates:
 
 observation_memory = ObservationMemory()
 personas = Personas()
+meta_affordances = MetaAffordances()
 status_updates = StatusUpdates()
 sequence_updates: SequenceUpdates = SequenceUpdates()
 memory_vectors = MemoryVectors()

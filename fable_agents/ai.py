@@ -40,6 +40,13 @@ Actions = {
             'goal': '<str: goal of reflecting>',
         },
     },
+    'interact': {
+        'description': "Interact with an object in the world",
+        'parameters': {
+            'simobject_guid': 'str: The id of the sim object to interact with',
+            'affordance': 'str: The name of the affordance to use when interacting',
+        },
+    },
     'continue': {
         'description': "Don't do anything new, just continue the current action",
         'parameters': {

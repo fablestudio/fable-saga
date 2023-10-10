@@ -8,7 +8,7 @@ from typing import List, Callable, Optional, Any, Dict
 from cattr import unstructure
 
 from fable_agents import ai
-from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate
+from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, MetaAffordanceProvider, SequenceUpdate
 import datastore
 import socketio
 
@@ -189,13 +189,13 @@ class SimulationAPI:
         """
         Load persona's current state (i.e. description and memory).
         :param on_complete:
-        :param guids: unique identifiers for the persona.
+        :param guids: unique identifiers for the persona. If empty, load all
         :param callback: function to call when the personas are loaded.
         """
 
         def convert_to_personas(response: Message):
             #print("RESPONSE", response)
-            if (response.type != 'request-personas-response'):
+            if response.type != 'request-personas-response':
                 print('Error: expected personas response.', response)
                 if on_complete is not None:
                     on_complete()
@@ -210,6 +210,34 @@ class SimulationAPI:
 
         # Note: Server callback only works with a specific client id.
         await self.send('request-personas', {'guids': guids}, callback=convert_to_personas)
+
+    async def reload_affordances(self, guids: List[str], on_complete: Optional[Callable[[], None]]):
+        """
+        Load all affordances from the active scene
+        :param on_complete:
+        :param guids: unique identifiers to load. If empty, load all
+        :param callback: function to call when the affordances are loaded.
+        """
+
+        def convert_to_affordances(response: Message):
+            if response.type != 'request-affordances-response':
+                print('Error: expected affordances response.', response)
+                if on_complete is not None:
+                    on_complete()
+                return
+            # Load meta affordances
+            for json_rep in response.data['meta_affordances']:
+                provider = MetaAffordanceProvider.from_json(json_rep)
+                datastore.meta_affordances.affordances[provider.sim_object.guid] = provider
+
+            # TODO: Load generic NPC affordances and all other sim object affordances
+
+            # TODO: This should return when this process is complete.
+            if on_complete is not None:
+                on_complete()
+
+        # Note: Server callback only works with a specific client id.
+        await self.send('request-affordances', {'guids': guids}, callback=convert_to_affordances)
 
     async def send(self, type: str, data: dict, callback: Callable[[Message], None]):
         """
