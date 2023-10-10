@@ -13,6 +13,8 @@ template: |
   
     Staying true to your character's personality and circumstance, choose from the following action options to react to the activity:
     {action_options}
+    
+    In the story, a dead native has been found outside of town and the sheriff is investigating.
         
     Respond with a list of between one and four actions from the options. Do not make up new characters or activities:
     
