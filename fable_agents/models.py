@@ -1,6 +1,6 @@
 import json
 import datetime
-from typing import Any
+from typing import Any, Optional
 
 from attrs import define
 from cattrs import structure, unstructure
@@ -194,3 +194,34 @@ class ObservationEvent:
             'importance': obj.get('importance', 0)
         }
         return ObservationEvent(**params)
+
+
+@define(slots=True)
+class SequenceUpdate:
+    """
+    {'sequence': '{"npcId":"henry_jenkins","sequenceName":"Play Cards: ",
+        "startingStep":"Ready to play","completedStep":"Go to game table",
+        "completedStepDurationMinutes":14.584982872009278,"interrupted":false}',
+        'timestamp': '2000-01-01T08:15:44.021'
+    }
+    """
+    timestamp: datetime.datetime
+    persona_guid: str
+    action: str
+    action_step_started: Optional[str]
+    action_step_completed: Optional[str]
+    interrupted: bool
+
+    @staticmethod
+    def from_dict(obj):
+        seq = json.loads(obj['sequence'])
+
+        params = {
+            'timestamp': obj['timestamp'],
+            'persona_guid': seq['npcId'],
+            'action': seq['sequenceName'],
+            'action_step_started': seq['startingStep'],
+            'action_step_completed': seq['completedStep'],
+            'interrupted': seq['interrupted']
+        }
+        return SequenceUpdate(**params)
