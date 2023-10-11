@@ -10,13 +10,13 @@ class Agent:
 
 
 Actions = {
-    'goto': {
-        'description': "Go to a character's location and stop",
-        'parameters': {
-            'persona_guid': '<str: guid of the persona to go to>',
-            'goal': '<str: goal of the movement>',
-        },
-    },
+    # 'goto': {
+    #     'description': "Go to a location in the world",
+    #     'parameters': {
+    #         'persona_guid': '<str: guid of the persona or item to go to>',
+    #         'goal': '<str: goal of the movement>',
+    #     },
+    # },
     'converse_with': {
         'description': "Talk to another character",
         'parameters': {
