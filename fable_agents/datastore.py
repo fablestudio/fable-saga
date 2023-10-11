@@ -56,6 +56,18 @@ class Personas:
         return [self.personas[k] for k in keys[:n]]
 
 
+class MetaAffordances:
+
+    def __init__(self):
+        self.affordances: Dict[str, models.MetaAffordanceProvider] = {}
+
+    def get(self, key) -> models.MetaAffordanceProvider:
+        return self.affordances[key]
+
+    def simobjects(self) -> List[str]:
+        return list(self.affordances.keys())
+
+
 class StatusUpdates:
 
     def __init__(self):
@@ -67,7 +79,9 @@ class StatusUpdates:
             self.status_updates[timestamp] = []
         self.status_updates[timestamp].extend(updates)
 
-    def last_updates(self) -> Tuple[datetime.datetime, List[models.StatusUpdate]]:
+    def last_updates(self) -> Tuple[Optional[datetime.datetime], List[models.StatusUpdate]]:
+        if len(self.status_updates) == 0:
+            return None, []
         timestamp = list(self.status_updates)[-1]
         return timestamp, self.status_updates[timestamp]
 
@@ -93,8 +107,10 @@ class SequenceUpdates:
         return self.sequence_updates.get(persona_id, [])[-n:]
 
 
-observation_memory = ObservationMemory()
-personas = Personas()
-status_updates = StatusUpdates()
-sequence_updates: SequenceUpdates = SequenceUpdates()
-memory_vectors = MemoryVectors()
+class Datastore:
+    observation_memory: ObservationMemory = ObservationMemory()
+    personas: Personas = Personas()
+    meta_affordances: MetaAffordances = MetaAffordances()
+    status_updates: StatusUpdates = StatusUpdates()
+    sequence_updates: SequenceUpdates = SequenceUpdates()
+    memory_vectors: MemoryVectors = MemoryVectors()

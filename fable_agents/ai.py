@@ -10,15 +10,15 @@ class Agent:
 
 
 Actions = {
-    'goto': {
-        'description': "Go to a character's location and stop",
-        'parameters': {
-            'persona_guid': '<str: guid of the persona to go to>',
-            'goal': '<str: goal of the movement>',
-        },
-    },
+    # 'goto': {
+    #     'description': "Go to a location in the world",
+    #     'parameters': {
+    #         'persona_guid': '<str: guid of the persona or item to go to>',
+    #         'goal': '<str: goal of the movement>',
+    #     },
+    # },
     'converse_with': {
-        'description': "Talk to another character",
+        'description': "Walk to another character and talk to them",
         'parameters': {
             'persona_guid': '<str: guid of the persona to converse with. You cannot talk to yourself.>',
             'topic': '<str: topic of the conversation>',
@@ -38,6 +38,14 @@ Actions = {
             'focus': '<str: the focus of the reflection>',
             'result:': '<str: the result of the reflection (thinking to oneself). E.g., "I should go to the kitchen.">',
             'goal': '<str: goal of reflecting>',
+        },
+    },
+    'interact': {
+        'description': "Interact with an object in the world",
+        'parameters': {
+            'simobject_guid': 'str: The id of the sim object to interact with',
+            'affordance': 'str: The name of the affordance to use when interacting',
+            'goal': '<str: goal of interaction>',
         },
     },
     'continue': {

@@ -36,6 +36,37 @@ class Persona:
 
 
 @define(slots=True)
+class SimObject:
+    guid: str
+    display_name: str
+    description: str
+
+    @staticmethod
+    def from_dict(obj):
+        params = {
+            'guid': obj['id'],
+            'display_name': obj['displayName'],
+            'description': obj['description'],
+        }
+        return SimObject(**params)
+
+
+@define(slots=True)
+class MetaAffordanceProvider:
+    sim_object: SimObject
+    affordances: [str]
+
+    @staticmethod
+    def from_json(json_string):
+        obj = json.loads(json_string)
+        params = {
+            'sim_object': SimObject.from_dict(obj['simObject']),
+            'affordances': obj['affordanceNames'],
+        }
+        return MetaAffordanceProvider(**params)
+
+
+@define(slots=True)
 class Message:
     type: str
     data: dict
