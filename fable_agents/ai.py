@@ -18,7 +18,7 @@ Actions = {
     #     },
     # },
     'converse_with': {
-        'description': "Talk to another character",
+        'description': "Walk to another character and talk to them",
         'parameters': {
             'persona_guid': '<str: guid of the persona to converse with. You cannot talk to yourself.>',
             'topic': '<str: topic of the conversation>',
@@ -45,6 +45,7 @@ Actions = {
         'parameters': {
             'simobject_guid': 'str: The id of the sim object to interact with',
             'affordance': 'str: The name of the affordance to use when interacting',
+            'goal': '<str: goal of interaction>',
         },
     },
     'continue': {

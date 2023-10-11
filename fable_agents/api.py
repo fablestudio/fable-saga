@@ -8,8 +8,8 @@ from typing import List, Callable, Optional, Any, Dict
 from cattr import unstructure
 
 from fable_agents import ai
-from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, MetaAffordanceProvider, SequenceUpdate
-import datastore
+from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider
+from fable_agents.datastore import Datastore, MetaAffordances
 import socketio
 
 from langchain.chat_models import ChatOpenAI
@@ -68,6 +68,15 @@ class Format:
     def sequence_update(sequence_update: SequenceUpdate):
         return unstructure(sequence_update)
 
+    @staticmethod
+    def interaction_option(provider: MetaAffordanceProvider):
+        return {
+            'item_guid': provider.sim_object.guid,
+            'name': provider.sim_object.display_name,
+            'description': provider.sim_object.description,
+            'interactions': provider.affordances
+        }
+
 
 class GaiaAPI:
 
@@ -80,7 +89,7 @@ class GaiaAPI:
         :param persona_guids: unique identifiers for the personas.
         :param callback: function to call when the conversation is created.
         """
-        initiator_persona = datastore.personas.personas.get(persona_guid, None)
+        initiator_persona = Datastore.personas.personas.get(persona_guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             if on_complete is not None:
@@ -92,7 +101,7 @@ class GaiaAPI:
 
         # TODO: Using all personas results in too much text.
         # pick 5 random personas
-        items = list(datastore.personas.personas.items())
+        items = list(Datastore.personas.personas.items())
         random.shuffle(items)
         for guid, persona_option in items[:5]:
             options.append(Format.persona(persona_option))
@@ -110,7 +119,7 @@ class GaiaAPI:
         :param persona_guids: unique identifiers for the personas.
         :param callback: function to call when the conversation is created.
         """
-        initiator_persona = datastore.personas.personas.get(observer_update.guid, None)
+        initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             return []
@@ -147,16 +156,19 @@ class GaiaAPI:
 
             for observation in intelligent_observations:
                 guid = observation.get('guid', None)
-                if guid in datastore.personas.personas.keys() and observation_events.get(guid, None):
+                if guid in Datastore.personas.personas.keys() and observation_events.get(guid, None):
                     event = observation_events[guid]
                     event.summary = observation.get('summary_of_activity', '')
                     event.importance = observation.get('summary_of_activity', 0)
-                    datastore.memory_vectors.memory_vectors.save_context({'observation_event': event},{'summary_of_activity': event.summary, 'importance': event.importance})
-        datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, observation_events.values())
+                    Datastore.memory_vectors.memory_vectors.save_context({'observation_event': event},{'summary_of_activity': event.summary, 'importance': event.importance})
+        Datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, observation_events.values())
         return intelligent_observations
 
-    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent], sequences: [List[SequenceUpdate]], ignore_continue: bool = False) -> List[Dict[str, Any]]:
-        initiator_persona = datastore.personas.personas.get(observer_update.guid, None)
+    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
+                               sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
+                               ignore_continue: bool = False) -> List[Dict[str, Any]]:
+
+        initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             return []
@@ -172,13 +184,17 @@ class GaiaAPI:
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
         llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
-        #print([Format.observation_event(evt) for evt in observations])
+
         resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
                                 self_description=json.dumps(Format.persona(initiator_persona)),
                                 self_update=json.dumps(Format.observer(observer_update)),
                                 observations=json.dumps([Format.observation_event(evt) for evt in observations]),
                                 sequences=json.dumps([Format.sequence_update(seq) for seq in sequences]),
-                                action_options=json.dumps(action_options))
+                                action_options=json.dumps(action_options),
+                                interact_options=json.dumps(
+                                    [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()])
+                                )
+
         options = json.loads(resp)
         return options
 
@@ -202,7 +218,7 @@ class SimulationAPI:
                 return
             for json_rep in response.data['personas']:
                 persona = Persona.from_json(json_rep)
-                datastore.personas.personas[persona.guid] = persona
+                Datastore.personas.personas[persona.guid] = persona
 
             # TODO: This should return when this process is complete.
             if on_complete is not None:
@@ -228,7 +244,7 @@ class SimulationAPI:
             # Load meta affordances
             for json_rep in response.data['meta_affordances']:
                 provider = MetaAffordanceProvider.from_json(json_rep)
-                datastore.meta_affordances.affordances[provider.sim_object.guid] = provider
+                Datastore.meta_affordances.affordances[provider.sim_object.guid] = provider
 
             # TODO: Load generic NPC affordances and all other sim object affordances
 
@@ -266,6 +282,6 @@ class SimulationAPI:
             if debug: print('emit', 'message', type, json.dumps(data))
             await sio.emit('message', (type, json.dumps(data)))
 
-
-simulation: SimulationAPI = SimulationAPI()
-gaia: GaiaAPI = GaiaAPI()
+class API:
+    simulation: SimulationAPI = SimulationAPI()
+    gaia: GaiaAPI = GaiaAPI()
