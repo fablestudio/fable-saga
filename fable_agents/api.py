@@ -1,16 +1,14 @@
 import json
-from dataclasses import dataclass
 import random
 from datetime import datetime
-from pprint import pprint
 from typing import List, Callable, Optional, Any, Dict
 
 from cattr import unstructure
 
 from fable_agents import ai
 from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider, \
-    Conversation
-from fable_agents.datastore import Datastore, MetaAffordances, ConversationMemory
+    Conversation, Location
+from fable_agents.datastore import Datastore, MetaAffordances
 import socketio
 
 from langchain.chat_models import ChatOpenAI
@@ -57,8 +55,12 @@ class Format:
             'action': status_update.sequence,
             'action_step': status_update.sequence_step,
         }
-        if status_update.location.vector3 is not None and status_update.destination is not None and status_update.destination.vector3 is not None:
-            out['destination_distance'] = str(float(Vector3.distance(status_update.location.vector3, status_update.destination.vector3))) + "m",
+        if status_update.position is not None and status_update.destination_id is not None:
+            destination = Datastore.locations.locations.get(status_update.destination_id, None)
+            if destination is None:
+                print('Error: location not found: ', status_update.destination_id)
+            else:
+                out['destination_distance'] = str(float(Vector3.distance(status_update.position, destination.center))) + "m",
 
     @staticmethod
     def simple_datetime(dt: datetime):
@@ -144,13 +146,13 @@ class GaiaAPI:
         observation_events: Dict[str, ObservationEvent] = {}
 
         # sort by distance for now. Later we might include a priority metric as well.
-        updates_to_consider.sort(key=lambda x: Vector3.distance(x.location.vector3, observer_update.location.vector3))
+        updates_to_consider.sort(key=lambda x: Vector3.distance(x.position, observer_update.position))
         for update in updates_to_consider[:self.observation_limit]:
             # Ignore the observer when creating observations.
             if update.guid == observer_update.guid:
                 continue
 
-            if update.location is not None and Vector3.distance(update.location.vector3, observer_update.location.vector3) <= self.observation_distance:
+            if update.position is not None and Vector3.distance(update.position, observer_update.position) <= self.observation_distance:
                 observation_events[update.guid] = ObservationEvent.from_status_update(update, observer_update)
 
         prompt = load_prompt("prompt_templates/observation_v1.yaml")
@@ -276,6 +278,30 @@ class SimulationAPI:
 
         # Note: Server callback only works with a specific client id.
         await self.send('request-affordances', {'guids': guids}, callback=convert_to_affordances)
+
+    async def reload_locations(self, on_complete: Optional[Callable[[], None]]):
+        """
+        Load all affordances from the active scene
+        :param on_complete:
+        :param callback: function to call when the affordances are loaded.
+        """
+
+        def convert_to_locations(response: Message):
+            if response.type != 'request-locations-response':
+                print('Error: expected locations response.', response)
+                if on_complete is not None:
+                    on_complete()
+                return
+            for json_rep in response.data['locations']:
+                location = Location.from_json(json_rep)
+                Datastore.locations.locations[location.guid] = location
+
+            # TODO: This should return when this process is complete.
+            if on_complete is not None:
+                on_complete()
+
+        # Note: Server callback only works with a specific client id.
+        await self.send('request-locations', {}, callback=convert_to_locations)
 
     async def send(self, type: str, data: dict, callback: Callable[[Message], None]):
         """
