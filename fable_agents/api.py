@@ -8,8 +8,9 @@ from typing import List, Callable, Optional, Any, Dict
 from cattr import unstructure
 
 from fable_agents import ai
-from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider
-from fable_agents.datastore import Datastore, MetaAffordances
+from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider, \
+    Conversation
+from fable_agents.datastore import Datastore, MetaAffordances, ConversationMemory
 import socketio
 
 from langchain.chat_models import ChatOpenAI
@@ -75,6 +76,21 @@ class Format:
             'name': provider.sim_object.display_name,
             'description': provider.sim_object.description,
             'interactions': provider.affordances
+        }
+
+    @staticmethod
+    def conversation(conversation: Conversation, current_datetime: datetime):
+
+        turns = []
+        for turn in conversation.turns:
+            turns.append({
+                'persona_guid': turn.guid,
+                'dialogue': turn.dialogue,
+            })
+
+        return {
+            'time_ago': str(int((current_datetime - conversation.timestamp).total_seconds() / 60)) + 'm ago',
+            'transcript': turns,
         }
 
 
@@ -161,11 +177,12 @@ class GaiaAPI:
                     event.summary = observation.get('summary_of_activity', '')
                     event.importance = observation.get('summary_of_activity', 0)
                     Datastore.memory_vectors.memory_vectors.save_context({'observation_event': event},{'summary_of_activity': event.summary, 'importance': event.importance})
-        Datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, observation_events.values())
+        Datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, list(observation_events.values()))
         return intelligent_observations
 
     async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
+                               conversations: List[Conversation],
                                ignore_continue: bool = False) -> List[Dict[str, Any]]:
 
         initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
@@ -191,6 +208,7 @@ class GaiaAPI:
                                 observations=json.dumps([Format.observation_event(evt) for evt in observations]),
                                 sequences=json.dumps([Format.sequence_update(seq) for seq in sequences]),
                                 action_options=json.dumps(action_options),
+                                conversations=json.dumps([Format.conversation(convo, observer_update.timestamp) for convo in conversations]),
                                 interact_options=json.dumps(
                                     [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()])
                                 )

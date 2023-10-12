@@ -79,8 +79,10 @@ async def message(sid, message_type, message_data):
             last_ts, last_observations = Datastore.observation_memory.last_observations(persona_guid)
             last_ts, last_update = Datastore.status_updates.last_update_for_persona(persona_guid)
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
+            recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
 
-            options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences, Datastore.meta_affordances, ignore_continue=True)
+            options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences,
+                                                      Datastore.meta_affordances, recent_conversations,ignore_continue=True)
             print("OPTIONS:", options)
             # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
             msg = models.Message('choose-sequence-response', {"options": options})
@@ -114,6 +116,7 @@ async def message(sid, message_type, message_data):
         #dt = datetime.datetime.fromisoformat(timestamp_str)
         dt = parser.parse(timestamp_str)
         conversation = models.Conversation.from_dict(dt, json.loads(conversation_raw))
+        Datastore.conversations.add(conversation)
         # TODO: Store the conversation
         # api.datastore.conversations.add_conversation(dt, conversation)
 
