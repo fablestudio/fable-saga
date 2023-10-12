@@ -1,6 +1,6 @@
 import json
 import datetime
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from attrs import define
 from cattrs import structure, unstructure
@@ -139,7 +139,7 @@ class SequenceStep:
 @define(slots=True)
 class Conversation:
     timestamp: datetime.datetime
-    turns: ['ConversationTurn']
+    turns: List['ConversationTurn']
 
     @staticmethod
     def from_dict(timestamp: datetime.datetime, obj: dict):

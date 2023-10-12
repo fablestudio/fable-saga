@@ -107,7 +107,26 @@ class SequenceUpdates:
         return self.sequence_updates.get(persona_id, [])[-n:]
 
 
+class ConversationMemory:
+
+    conversations: Dict[str, List[models.Conversation]] = {}
+
+    def add(self, conversation: models.Conversation) -> None:
+        """
+        Add a conversation to the memory. Indexed by speakers guids.
+        :param conversation:
+        """
+        guids = set([turn.guid for turn in conversation.turns])
+        for guid in guids:
+            conversations = self.conversations.get(guid, [])
+            conversations.append(conversation)
+            self.conversations[guid] = conversations
+
+    def get(self, guid) -> List[models.Conversation]:
+        return self.conversations.get(guid, [])
+
 class Datastore:
+    conversations: ConversationMemory = ConversationMemory()
     observation_memory: ObservationMemory = ObservationMemory()
     personas: Personas = Personas()
     meta_affordances: MetaAffordances = MetaAffordances()
