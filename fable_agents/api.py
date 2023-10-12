@@ -146,6 +146,10 @@ class GaiaAPI:
         # sort by distance for now. Later we might include a priority metric as well.
         updates_to_consider.sort(key=lambda x: Vector3.distance(x.location.vector3, observer_update.location.vector3))
         for update in updates_to_consider[:self.observation_limit]:
+            # Ignore the observer when creating observations.
+            if update.guid == observer_update.guid:
+                continue
+
             if update.location is not None and Vector3.distance(update.location.vector3, observer_update.location.vector3) <= self.observation_distance:
                 observation_events[update.guid] = ObservationEvent.from_status_update(update, observer_update)
 
