@@ -127,6 +127,9 @@ async def message(sid, message_type, message_data):
             return
         Datastore.sequence_updates.add_updates([update])
 
+    elif msg.type == 'affordance-state-changed':
+        await API.simulation.reload_affordances([], None)
+
     else:
         logger.warning("handler not found for message type:" + msg.type)
 

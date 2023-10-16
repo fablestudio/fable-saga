@@ -264,6 +264,7 @@ class SimulationAPI:
                     on_complete()
                 return
             # Load meta affordances
+            Datastore.meta_affordances.affordances.clear()
             for json_rep in response.data['meta_affordances']:
                 provider = MetaAffordanceProvider.from_json(json_rep)
                 Datastore.meta_affordances.affordances[provider.sim_object.guid] = provider
