@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import models
 import random
 import datetime
@@ -140,3 +140,4 @@ class Datastore:
     sequence_updates: SequenceUpdates = SequenceUpdates()
     memory_vectors: MemoryVectors = MemoryVectors()
     locations: Locations = Locations()
+    last_player_options: Optional[List[Dict[str, Any]]] = None
