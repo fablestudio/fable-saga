@@ -128,6 +128,9 @@ async def message(sid, message_type, message_data):
             return
         Datastore.sequence_updates.add_updates([update])
 
+    elif msg.type == 'affordance-state-changed':
+        await API.simulation.reload_affordances([], None)
+
     elif msg.type == 'player-option-choice':
         if Datastore.last_player_options is None:
             return

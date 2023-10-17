@@ -55,6 +55,7 @@ class SimObject:
 class MetaAffordanceProvider:
     sim_object: SimObject
     affordances: [str]
+    locked: bool
 
     @staticmethod
     def from_json(json_string):
@@ -62,6 +63,7 @@ class MetaAffordanceProvider:
         params = {
             'sim_object': SimObject.from_dict(obj['simObject']),
             'affordances': obj['affordanceNames'],
+            'locked': obj['locked'],
         }
         return MetaAffordanceProvider(**params)
 
