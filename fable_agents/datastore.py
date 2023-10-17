@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import models
 import random
 import datetime
@@ -54,6 +54,12 @@ class Personas:
         keys = list(self.personas.keys())
         random.shuffle(keys)
         return [self.personas[k] for k in keys[:n]]
+
+
+class Locations:
+
+    def __init__(self):
+        self.locations: Dict[str, models.Location] = {}
 
 
 class MetaAffordances:
@@ -133,3 +139,5 @@ class Datastore:
     status_updates: StatusUpdates = StatusUpdates()
     sequence_updates: SequenceUpdates = SequenceUpdates()
     memory_vectors: MemoryVectors = MemoryVectors()
+    locations: Locations = Locations()
+    last_player_options: Optional[List[Dict[str, Any]]] = None

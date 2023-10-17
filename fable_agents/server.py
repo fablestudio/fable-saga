@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+
 from dateutil import parser
 
 from aiohttp import web
@@ -81,11 +82,11 @@ async def message(sid, message_type, message_data):
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
             recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
 
-            options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences,
+            Datastore.last_player_options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences,
                                                       Datastore.meta_affordances, recent_conversations,ignore_continue=True)
-            print("OPTIONS:", options)
+            print("OPTIONS:", Datastore.last_player_options)
             # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
-            msg = models.Message('choose-sequence-response', {"options": options})
+            msg = models.Message('choose-sequence-response', {"options": Datastore.last_player_options})
             return msg.type, json.dumps(msg.data)
 
 
@@ -130,6 +131,16 @@ async def message(sid, message_type, message_data):
     elif msg.type == 'affordance-state-changed':
         await API.simulation.reload_affordances([], None)
 
+    elif msg.type == 'player-option-choice':
+        if Datastore.last_player_options is None:
+            return
+        choice_index = msg.data["choiceIndex"]
+        if choice_index < 0 or choice_index >= len(Datastore.last_player_options):
+            return
+        choice_option = Datastore.last_player_options[choice_index]
+        Datastore.last_player_options = None
+        # TODO: Do something with the choice_option
+
     else:
         logger.warning("handler not found for message type:" + msg.type)
 
@@ -147,7 +158,7 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
 
-        if  len(Datastore.personas.personas) == 0:
+        if len(Datastore.personas.personas) == 0:
             await API.simulation.reload_personas([], None)
             await asyncio.sleep(1)
             continue
@@ -165,7 +176,13 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
 
-        await asyncio.sleep(5)
+        if len(Datastore.locations.locations) == 0:
+            await API.simulation.reload_locations(None)
+            await asyncio.sleep(1)
+            continue
+
+        await asyncio.sleep(1)
+
 
 async def command_interface():
     loop = asyncio.get_event_loop()
