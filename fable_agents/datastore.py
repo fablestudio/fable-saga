@@ -56,6 +56,12 @@ class Personas:
         return [self.personas[k] for k in keys[:n]]
 
 
+class Locations:
+
+    def __init__(self):
+        self.locations: Dict[str, models.Location] = {}
+
+
 class MetaAffordances:
 
     def __init__(self):
@@ -133,4 +139,5 @@ class Datastore:
     status_updates: StatusUpdates = StatusUpdates()
     sequence_updates: SequenceUpdates = SequenceUpdates()
     memory_vectors: MemoryVectors = MemoryVectors()
+    locations: Locations = Locations()
     last_player_options: Optional[List[Dict[str, Any]]] = None

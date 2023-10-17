@@ -17,7 +17,7 @@ class Persona:
     first_name: str
     last_name: str
     description: str
-    summary:str
+    summary: str
     backstory: str
 
     @staticmethod
@@ -74,18 +74,29 @@ class Message:
 
 @define(slots=True)
 class Location:
-    vector3: 'Vector3'
-    place: str
+    guid: str
+    name: str
     description: str
+    parent_guid: str
+    center: 'Vector3'
+    extents: 'Vector3'
+
+    @staticmethod
+    def from_json(json_string: str):
+        obj = json.loads(json_string)
+        return Location.from_dict(obj)
 
     @staticmethod
     def from_dict(obj):
         if obj is None:
             return None
         params = {
-            'vector3': Vector3.from_dict(obj['vector3']),
-            'place': obj['place'],
-            'description': obj['description']
+            'guid': obj['id'],
+            'name': obj['name'],
+            'description': obj['description'],
+            'parent_guid': obj['parentId'],
+            'center': Vector3.from_dict(obj['center']),
+            'extents': Vector3.from_dict(obj['extents']),
         }
         return Location(**params)
 
@@ -96,8 +107,9 @@ class StatusUpdate:
     guid: str
     sequence: str
     sequence_step: str
-    location: Location
-    destination: Location
+    position: 'Vector3'
+    location_id: str
+    destination_id: str
 
     @staticmethod
     def from_dict(timestamp: datetime.datetime, obj: dict):
@@ -106,8 +118,9 @@ class StatusUpdate:
             'guid': obj['id'],
             'sequence': obj['sequence'],
             'sequence_step': obj['sequenceStep'],
-            'location': Location.from_dict(obj['location']),
-            'destination': Location.from_dict(obj['destination'])
+            'position': Vector3.from_dict(obj['position']),
+            'location_id': obj['locationId'],
+            'destination_id': obj['destinationId']
         }
         return StatusUpdate(**params)
 
@@ -206,7 +219,7 @@ class ObservationEvent:
             'persona_guid': update.guid,
             'action': update.sequence,
             'action_step': update.sequence_step,
-            'distance': Vector3.distance(update.location.vector3,  observer_update.location.vector3),
+            'distance': Vector3.distance(update.position, observer_update.position),
             'summary': '',
             'importance': 0
         }

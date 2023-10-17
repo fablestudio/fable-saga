@@ -155,7 +155,7 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
 
-        if  len(Datastore.personas.personas) == 0:
+        if len(Datastore.personas.personas) == 0:
             await API.simulation.reload_personas([], None)
             await asyncio.sleep(1)
             continue
@@ -173,7 +173,13 @@ async def internal_tick():
             await asyncio.sleep(1)
             continue
 
+        if len(Datastore.locations.locations) == 0:
+            await API.simulation.reload_locations(None)
+            await asyncio.sleep(1)
+            continue
+
         await asyncio.sleep(1)
+
 
 async def command_interface():
     loop = asyncio.get_event_loop()
