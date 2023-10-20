@@ -1,6 +1,6 @@
 _type: prompt
 input_variables:
-    ["time", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas"]
+    ["time", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals"]
 template: |
     You are an NPC character in a small western town of the late 1800s and described as follows:
     {self_description}
@@ -10,12 +10,6 @@ template: |
     
     Currently, you are doing the following activity at {time}:
     {self_update}
-    
-    Recently, you were doing the following activities:
-    {sequences}
-    
-    Many characters exist in this world doing various activities right now. You noticed the following most recently:
-    {observations}
     
     You had the following conversations recently:
     {conversations}
@@ -28,7 +22,10 @@ template: |
     {interact_options}
     
     In the story, a dead native has been found outside of town and the sheriff is investigating.
-        
+    
+    Some recent goals were:
+    {recent_goals}
+    
     Respond with a list of between one and four actions from the options. Do not make up new characters or activities:
     
     Use the following json format:
@@ -37,3 +34,10 @@ template: |
     ]
 
 #    Take careful note of what you are already doing and if you want to continue doing it, just choose the "continue" action.
+
+# Unused
+#Recently, you were doing the following activities:
+#    {sequences}
+#
+#    Many characters exist in this world doing various activities right now. You noticed the following:
+#    {observations}
