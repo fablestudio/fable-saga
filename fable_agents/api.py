@@ -188,7 +188,7 @@ class GaiaAPI:
 
     async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
-                               conversations: List[Conversation],
+                               conversations: List[Conversation], recent_goals: List[str],
                                ignore_continue: bool = False) -> List[Dict[str, Any]]:
 
         initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
@@ -216,7 +216,8 @@ class GaiaAPI:
                                 action_options=json.dumps(action_options),
                                 conversations=json.dumps([Format.conversation(convo, observer_update.timestamp) for convo in conversations]),
                                 interact_options=json.dumps(
-                                    [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()])
+                                    [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
+                                recent_goals = json.dumps(Datastore.recent_goals_chosen)
                                 )
 
         options = json.loads(resp)

@@ -141,3 +141,4 @@ class Datastore:
     memory_vectors: MemoryVectors = MemoryVectors()
     locations: Locations = Locations()
     last_player_options: Optional[List[Dict[str, Any]]] = None
+    recent_goals_chosen: List[str] = []

@@ -137,7 +137,7 @@ async def message(sid, message_type, message_data):
         choice_index = msg.data["choiceIndex"]
         if choice_index < 0 or choice_index >= len(Datastore.last_player_options):
             return
-        choice_option = Datastore.last_player_options[choice_index]
+        Datastore.recent_goals_chosen.append(Datastore.last_player_options[choice_index]['goal'])
         Datastore.last_player_options = None
         # TODO: Do something with the choice_option
 
