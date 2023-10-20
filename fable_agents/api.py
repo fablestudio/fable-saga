@@ -26,12 +26,20 @@ class Format:
     @staticmethod
     def persona(persona: Persona):
         return {
-            'ID': persona.guid,
-            'FirstName': persona.first_name,
-            'LastName': persona.last_name,
-            'Description': persona.description,
-            'Summary': persona.summary,
-            'BackStory': persona.backstory
+            'persona_guid': persona.guid,
+            'first_name': persona.first_name,
+            'last_name': persona.last_name,
+            'description': persona.description,
+            'summary': persona.summary,
+            'backstory': persona.backstory
+        }
+
+    @staticmethod
+    def persona_short(persona):
+        return {
+            'persona_guid': persona.guid,
+            'name': persona.first_name + "" + persona.last_name,
+            'summary': persona.summary,
         }
     @staticmethod
     def observation_event(event: ObservationEvent) -> Dict[str, str]:
@@ -188,7 +196,7 @@ class GaiaAPI:
 
     async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
-                               conversations: List[Conversation],
+                               conversations: List[Conversation], personas: List[Persona],
                                ignore_continue: bool = False) -> List[Dict[str, Any]]:
 
         initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
@@ -215,6 +223,7 @@ class GaiaAPI:
                                 sequences=json.dumps([Format.sequence_update(seq) for seq in sequences]),
                                 action_options=json.dumps(action_options),
                                 conversations=json.dumps([Format.conversation(convo, observer_update.timestamp) for convo in conversations]),
+                                personas=json.dumps([Format.persona_short(persona) for persona in personas]),
                                 interact_options=json.dumps(
                                     [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()])
                                 )

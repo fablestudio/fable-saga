@@ -81,9 +81,11 @@ async def message(sid, message_type, message_data):
             last_ts, last_update = Datastore.status_updates.last_update_for_persona(persona_guid)
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
             recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
+            personas = list(Datastore.personas.personas.values())
 
             Datastore.last_player_options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences,
-                                                      Datastore.meta_affordances, recent_conversations,ignore_continue=True)
+                                                      Datastore.meta_affordances, recent_conversations,
+                                                      personas, ignore_continue=True)
             print("OPTIONS:", Datastore.last_player_options)
             # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
             msg = models.Message('choose-sequence-response', {"options": Datastore.last_player_options})
