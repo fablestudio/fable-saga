@@ -192,7 +192,10 @@ async def internal_tick():
             continue
 
         if len(Datastore.locations.locations) == 0:
-            await API.simulation.reload_locations(None)
+            def handler():
+                print("LOCATIONS:", Datastore.locations.locations)
+                Datastore.locations.regenerate_hierarchy()
+            await API.simulation.reload_locations(handler)
             await asyncio.sleep(1)
             continue
 

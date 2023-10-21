@@ -266,3 +266,9 @@ class SequenceUpdate:
             'interrupted': seq['interrupted']
         }
         return SequenceUpdate(**params)
+
+@define(slots=True)
+class LocationNode:
+    location: Location
+    parent: Optional['LocationNode']
+    children: List['LocationNode']
