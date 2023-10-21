@@ -41,6 +41,7 @@ class Format:
             'name': persona.first_name + "" + persona.last_name,
             'summary': persona.summary,
         }
+
     @staticmethod
     def observation_event(event: ObservationEvent) -> Dict[str, str]:
         out = {
@@ -76,8 +77,32 @@ class Format:
         return dt.strftime("%A, %I:%M %p")
 
     @staticmethod
-    def sequence_update(sequence_update: SequenceUpdate):
-        return unstructure(sequence_update)
+    def simple_time_ago(dt: datetime, current_datetime: datetime) -> str:
+        # Format as the number of days or minutes ago. Only use days if it was at least a day ago.
+        days_ago = (current_datetime - dt).days
+        minutes_ago = int((current_datetime - dt).total_seconds() / 60)
+        if days_ago > 0:
+            return str(days_ago) + ' days ago'
+        else:
+            return str(minutes_ago) + 'm ago'
+
+    @staticmethod
+    def sequence_updates(sequence_updates: List[SequenceUpdate], timestamp: datetime):
+        output = []
+        last_action = None
+        for sequence_update in sequence_updates:
+            if sequence_update.action != last_action:
+                output.append({
+                    'started': Format.simple_time_ago(sequence_update.timestamp, timestamp),
+                    'last_time': Format.simple_time_ago(sequence_update.timestamp, timestamp),
+                    'action': sequence_update.action,
+                    'steps': sequence_update.action_step_started
+                })
+                last_action = sequence_update.action
+            else:
+                output[-1]['steps'] += " > " + sequence_update.action_step_started
+                output[-1]['last_time'] = Format.simple_time_ago(sequence_update.timestamp, timestamp)
+        return output
 
     @staticmethod
     def interaction_option(provider: MetaAffordanceProvider):
@@ -94,8 +119,7 @@ class Format:
         turns = []
         for turn in conversation.turns:
             turns.append({
-                'persona_guid': turn.guid,
-                'dialogue': turn.dialogue,
+                turn.guid: turn.dialogue,
             })
 
         return {
@@ -197,7 +221,7 @@ class GaiaAPI:
     async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
-                               recent_goals: List[str],
+                               recent_goals: List[str], current_timestamp: datetime,
                                ignore_continue: bool = False) -> List[Dict[str, Any]]:
 
         initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
@@ -214,23 +238,35 @@ class GaiaAPI:
             del action_options['continue']
 
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
+        llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-16k")
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
 
-        resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
-                                self_description=json.dumps(Format.persona(initiator_persona)),
-                                self_update=json.dumps(Format.observer(observer_update)),
-                                observations=json.dumps([Format.observation_event(evt) for evt in observations]),
-                                sequences=json.dumps([Format.sequence_update(seq) for seq in sequences]),
-                                action_options=json.dumps(action_options),
-                                conversations=json.dumps([Format.conversation(convo, observer_update.timestamp) for convo in conversations]),
-                                personas=json.dumps([Format.persona_short(persona) for persona in personas]),
-                                interact_options=json.dumps(
-                                    [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
-                                recent_goals = json.dumps(Datastore.recent_goals_chosen)
-                                )
+        retries = 1
+        options = []
+        while retries >= 0 and len(options) == 0:
+            resp = await chain.arun(time=Format.simple_datetime(current_timestamp),
+                                    self_description=json.dumps(Format.persona(initiator_persona)),
+                                    self_update=json.dumps(Format.observer(observer_update)),
+                                    observations=json.dumps([Format.observation_event(evt) for evt in observations]),
+                                    sequences=json.dumps(Format.sequence_updates(sequences, current_timestamp)),
+                                    action_options=json.dumps(action_options),
+                                    conversations=json.dumps([Format.conversation(convo, current_timestamp) for convo in conversations]),
+                                    personas=json.dumps([Format.persona_short(persona) for persona in personas]),
+                                    interact_options=json.dumps(
+                                        [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
+                                    recent_goals=json.dumps(recent_goals[:10])
+                                    )
 
-        options = json.loads(resp)
+            try:
+                options = json.loads(resp)
+            except (json.JSONDecodeError, TypeError) as e:
+                print("Error decoding response", e, resp)
+                options = []
+            if len(options) == 0:
+                print("No options found. Retrying.")
+                retries -= 1
+            else:
+                break
         return options
 
 

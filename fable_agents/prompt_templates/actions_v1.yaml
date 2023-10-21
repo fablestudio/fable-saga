@@ -11,6 +11,12 @@ template: |
     Currently, you are doing the following activity at {time}:
     {self_update}
     
+    Recently, you were doing the following activities:
+    {sequences}
+
+    Many characters exist in this world doing various activities right now. You noticed the following:
+    {observations}
+    
     You had the following conversations recently:
     {conversations}
   
@@ -35,9 +41,3 @@ template: |
 
 #    Take careful note of what you are already doing and if you want to continue doing it, just choose the "continue" action.
 
-# Unused
-#Recently, you were doing the following activities:
-#    {sequences}
-#
-#    Many characters exist in this world doing various activities right now. You noticed the following:
-#    {observations}

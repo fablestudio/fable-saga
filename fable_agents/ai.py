@@ -22,6 +22,7 @@ Actions = {
         'parameters': {
             'persona_guid': '<str: guid of the persona to converse with. You cannot talk to yourself.>',
             'topic': '<str: topic of the conversation>',
+            'context': '<str: any and all helpful details from your observations or memory to be provided to the conversation generator>',
             'goal': '<str: goal of the conversation>',
         },
     },

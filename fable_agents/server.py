@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import random
 
@@ -16,40 +17,46 @@ import logging
 sio = socketio.AsyncServer()
 app: web.Application = web.Application()
 sio.attach(app)
-#client_loop = asyncio.new_event_loop()
+# client_loop = asyncio.new_event_loop()
 api.sio = sio
 
 logger = logging.getLogger('__name__')
 
 auto_observer_guids = ['wyatt_cooper']
 
+
 async def index(request):
     """Serve the client-side application."""
     with open('index.html') as f:
         return web.Response(text=f.read(), content_type='text/html')
+
 
 @sio.event
 def connect(sid, environ):
     api.simulation_client_id = sid
     logger.info("connect:" + sid)
 
+
 @sio.event
 def disconnect(sid):
     logger.info("disconnect:" + sid)
+
 
 @sio.on('echo')
 async def echo(sid, message):
     logger.info("echo:" + message)
     await sio.emit('echo', message)
 
+
 @sio.on('ack')
 async def ack(sid, type, data):
     logger.info("ack:" + type + " " + data)
     return type, data
 
+
 @sio.on('message')
 async def message(sid, message_type, message_data):
-    #print ('message', message_type, message_data)
+    # print ('message', message_type, message_data)
     # it's probably better to not encode the message as a json string, but if we don't
     # then the client will deserialize it before we can deserialize it ourselves.
     # TODO: See if we can find an alternative to this.
@@ -63,6 +70,7 @@ async def message(sid, message_type, message_data):
 
     if msg.type == 'choose-sequence':
         use_random = False
+        current_timestamp: datetime.datetime = parser.parse(msg.data['timestamp'])
 
         if use_random:
             # Choose a random option.
@@ -82,10 +90,15 @@ async def message(sid, message_type, message_data):
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
             recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
             personas = list(Datastore.personas.personas.values())
+            recent_goals = Datastore.recent_goals_chosen
 
-            Datastore.last_player_options = await API.gaia.create_reactions(last_update, last_observations, recent_sequences,
-                                                      Datastore.meta_affordances, recent_conversations,
-                                                      personas, ignore_continue=True)
+            Datastore.last_player_options = \
+                await API.gaia.create_reactions(last_update, last_observations,
+                                                recent_sequences,
+                                                Datastore.meta_affordances,
+                                                recent_conversations,
+                                                personas, recent_goals, current_timestamp,
+                                                ignore_continue=True)
             print("OPTIONS:", Datastore.last_player_options)
             # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
             msg = models.Message('choose-sequence-response', {"options": Datastore.last_player_options})
@@ -97,7 +110,7 @@ async def message(sid, message_type, message_data):
         timestamp_str = msg.data.get("timestamp", '')
         # This is a hack to get around the fact that datetime.fromisoformat doesn't work for all reasonable ISO strings in python 3.10
         # See https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date which says 3.11 should fix this issue.
-        #dt = datetime.datetime.fromisoformat(timestamp_str)
+        # dt = datetime.datetime.fromisoformat(timestamp_str)
         dt = parser.parse(timestamp_str)
         updates = [models.StatusUpdate.from_dict(dt, json.loads(u)) for u in updates_raw]
         Datastore.status_updates.add_updates(dt, updates)
@@ -108,15 +121,15 @@ async def message(sid, message_type, message_data):
 
             # Create observations for the observer.
             observations = await API.gaia.create_observations(self_update, updates)
-            #print("CALLBACK:", self_update.guid)
-            #print(observations)
+            # print("CALLBACK:", self_update.guid)
+            # print(observations)
 
     elif msg.type == 'character-conversation':
         conversation_raw = msg.data.get("conversation", None)
         timestamp_str = msg.data.get("timestamp", '')
         # This is a hack to get around the fact that datetime.fromisoformat doesn't work for all reasonable ISO strings in python 3.10
         # See https://stackoverflow.com/questions/127803/how-do-i-parse-an-iso-8601-formatted-date which says 3.11 should fix this issue.
-        #dt = datetime.datetime.fromisoformat(timestamp_str)
+        # dt = datetime.datetime.fromisoformat(timestamp_str)
         dt = parser.parse(timestamp_str)
         conversation = models.Conversation.from_dict(dt, json.loads(conversation_raw))
         Datastore.conversations.add(conversation)
@@ -139,9 +152,8 @@ async def message(sid, message_type, message_data):
         choice_index = msg.data["choiceIndex"]
         if choice_index < 0 or choice_index >= len(Datastore.last_player_options):
             return
-        Datastore.recent_goals_chosen.append(Datastore.last_player_options[choice_index]['goal'])
+        Datastore.recent_goals_chosen.append(Datastore.last_player_options[choice_index]['parameters']['goal'])
         Datastore.last_player_options = None
-        # TODO: Do something with the choice_option
 
     else:
         logger.warning("handler not found for message type:" + msg.type)
@@ -150,6 +162,7 @@ async def message(sid, message_type, message_data):
 @sio.on('heartbeat')
 async def heartbeat(sid):
     logger.info('heartbeat:' + sid)
+
 
 async def internal_tick():
     """
@@ -225,7 +238,6 @@ async def command_interface():
 
         else:
             print(f'Command not found: {user_input}')
-
 
 
 app.router.add_static('/static', 'static')
