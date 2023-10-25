@@ -193,7 +193,6 @@ async def internal_tick():
 
         if len(Datastore.locations.locations) == 0:
             def handler():
-                print("LOCATIONS:", Datastore.locations.locations)
                 Datastore.locations.regenerate_hierarchy()
             await API.simulation.reload_locations(handler)
             await asyncio.sleep(1)
@@ -238,6 +237,20 @@ async def command_interface():
             last_ts, last_update = Datastore.status_updates.last_update_for_persona(reactor_guid)
             reactions = await API.gaia.create_reactions(last_update, last_observations)
             print("REACTIONS:", reactions)
+
+        elif user_input.startswith('locations'):
+            args = user_input.split(' ')
+            if len(args) < 2:
+                print("Please specify a location guid or use 'tree' to show a tree.")
+                continue
+            if args[1] == 'tree':
+                def print_tree(node: models.LocationNode, level):
+                    print('==' * level + ">", node.location.name, '?', node.location.description)
+                    for child in node.children:
+                        print_tree(child, level + 1)
+                for node in Datastore.locations.nodes.values():
+                    if node.parent is None:
+                        print_tree(node, 0)
 
         else:
             print(f'Command not found: {user_input}')

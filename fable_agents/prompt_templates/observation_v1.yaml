@@ -18,3 +18,5 @@ template: |
     [
         {{"guid": "<character_guid of the action>", "summary_of_activity": "<summary of what you notice>", "importance": <integer between 0 and 10>}}
     ]
+    
+    Make sure you generate valid JSON only.

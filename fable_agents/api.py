@@ -7,7 +7,7 @@ from cattr import unstructure
 
 from fable_agents import ai
 from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider, \
-    Conversation, Location
+    Conversation, Location, LocationNode
 from fable_agents.datastore import Datastore, MetaAffordances
 import socketio
 
@@ -127,6 +127,24 @@ class Format:
             'transcript': turns,
         }
 
+    @staticmethod
+    def location_tree(nodes: List[LocationNode]) -> Dict[str, Any]:
+        output = {}
+
+        # Recursively generate a tree of locations.
+        def gen_tree(node: LocationNode):
+            return {
+                'name': node.location.name,
+                'description': node.location.description,
+                'children': [gen_tree(child) for child in node.children]
+            }
+
+        for node in nodes:
+            # Only add the root nodes. The rest will be included in the tree.
+            if node.parent is None:
+                output[node.location.name] = gen_tree(node)
+        return output
+
 
 class GaiaAPI:
 
@@ -238,7 +256,8 @@ class GaiaAPI:
             del action_options['continue']
 
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-16k")
+        #llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-16k")
+        llm = ChatOpenAI(temperature=0.9, model_name="gpt-4")
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
 
         retries = 1
@@ -254,7 +273,8 @@ class GaiaAPI:
                                     personas=json.dumps([Format.persona_short(persona) for persona in personas]),
                                     interact_options=json.dumps(
                                         [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
-                                    recent_goals=json.dumps(recent_goals[:10])
+                                    recent_goals=json.dumps(recent_goals[:10]),
+                                    locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values())))
                                     )
 
             try:

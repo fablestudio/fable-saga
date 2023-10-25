@@ -22,30 +22,31 @@ Actions = {
         'parameters': {
             'persona_guid': '<str: guid of the persona to converse with. You cannot talk to yourself.>',
             'topic': '<str: topic of the conversation>',
-            'context': '<str: any and all helpful details from your observations or memory to be provided to the conversation generator>',
+            'context': '<str: lots of helpful details the conversation generator can use to generate a conversation.'
+                       ' It only has access to the context and the topic you provide, so be very detailed.>',
             'goal': '<str: goal of the conversation>',
         },
     },
     'wait': {
-        'description': "Wait for a period of time",
+        'description': "Wait for a period of time while observing the world",
         'parameters': {
             'duration': '<int: number of minutes to wait>',
             'goal': '<str: goal of the waiting>',
         },
     },
     'reflect': {
-        'description': "Think about things",
+        'description': "Think about things in order to synthesize new ideas and specific plans",
         'parameters': {
             'focus': '<str: the focus of the reflection>',
-            'result:': '<str: the result of the reflection (thinking to oneself). E.g., "I should go to the kitchen.">',
+            'result:': '<str: the new specific enlightenment after reflecting.>',
             'goal': '<str: goal of reflecting>',
         },
     },
     'interact': {
-        'description': "Interact with an object in the world",
+        'description': "Interact with an item in the world",
         'parameters': {
-            'simobject_guid': 'str: The id of the sim object to interact with',
-            'affordance': 'str: The name of the affordance to use when interacting',
+            'item_guid': 'str: The id of the item to interact with',
+            'interaction': 'str: The name of the interaction from the list per item.',
             'goal': '<str: goal of interaction>',
         },
     },
