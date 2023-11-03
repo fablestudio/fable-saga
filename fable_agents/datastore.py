@@ -60,6 +60,29 @@ class Locations:
 
     def __init__(self):
         self.locations: Dict[str, models.Location] = {}
+        self.nodes: Dict[str, models.LocationNode] = {}
+
+    def regenerate_hierarchy(self):
+        self.nodes.clear()
+        need_parents: List[models.LocationNode] = []
+
+        # First, create all the nodes.
+        for location in self.locations.values():
+            node = models.LocationNode(location, None, [])
+            self.nodes[location.guid] = node
+            if location.parent_guid is not None and location.parent_guid != '':
+                need_parents.append(node)
+        # Now, add the parents.
+        while len(need_parents) > 0:
+            node = need_parents.pop()
+            parent = self.nodes.get(node.location.parent_guid, None)
+            if parent is None:
+                # This parent hasn't been created yet, throw an error.
+                raise Exception(f"Parent {node.location.parent_guid} not found for location {node.location.guid}")
+            # Add the parent to the node.
+            node.parent = parent
+            # Add the node to the parent's children.
+            parent.children.append(node)
 
 
 class MetaAffordances:
@@ -141,3 +164,4 @@ class Datastore:
     memory_vectors: MemoryVectors = MemoryVectors()
     locations: Locations = Locations()
     last_player_options: Optional[List[Dict[str, Any]]] = None
+    recent_goals_chosen: List[str] = []

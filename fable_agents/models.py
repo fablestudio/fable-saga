@@ -4,6 +4,8 @@ from typing import Any, Optional, List
 
 from attrs import define
 from cattrs import structure, unstructure
+from dateutil import parser
+
 
 
 class World:
@@ -244,13 +246,6 @@ class ObservationEvent:
 
 @define(slots=True)
 class SequenceUpdate:
-    """
-    {'sequence': '{"npcId":"henry_jenkins","sequenceName":"Play Cards: ",
-        "startingStep":"Ready to play","completedStep":"Go to game table",
-        "completedStepDurationMinutes":14.584982872009278,"interrupted":false}',
-        'timestamp': '2000-01-01T08:15:44.021'
-    }
-    """
     timestamp: datetime.datetime
     persona_guid: str
     action: str
@@ -263,7 +258,7 @@ class SequenceUpdate:
         seq = json.loads(obj['sequence'])
 
         params = {
-            'timestamp': obj['timestamp'],
+            'timestamp': parser.parse(obj['timestamp']),
             'persona_guid': seq['npcId'],
             'action': seq['sequenceName'],
             'action_step_started': seq['startingStep'],
@@ -271,3 +266,9 @@ class SequenceUpdate:
             'interrupted': seq['interrupted']
         }
         return SequenceUpdate(**params)
+
+@define(slots=True)
+class LocationNode:
+    location: Location
+    parent: Optional['LocationNode']
+    children: List['LocationNode']
