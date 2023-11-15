@@ -69,7 +69,8 @@ class Format:
             if destination is None:
                 print('Error: location not found: ', status_update.destination_id)
             else:
-                out['destination_distance'] = str(float(Vector3.distance(status_update.position, destination.center))) + "m",
+                out['destination_distance'] = str(float(Vector3.distance(
+                    status_update.position, destination.center_floor_position))) + "m",
 
     @staticmethod
     def simple_datetime(dt: datetime):
@@ -251,13 +252,9 @@ class GaiaAPI:
 
         # Create a list of actions to consider.
         action_options = ai.Actions.copy()
-        # Remove continue if we are not allowed to continue.
-        if ignore_continue:
-            del action_options['continue']
 
         prompt = load_prompt("prompt_templates/actions_v1.yaml")
-        #llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-16k")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-4")
+        llm = ChatOpenAI(temperature=0.9, model_name="gpt-4-1106-preview")
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
 
         retries = 1

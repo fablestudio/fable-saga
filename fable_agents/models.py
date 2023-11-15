@@ -84,6 +84,7 @@ class Location:
     parent_guid: str
     center: 'Vector3'
     extents: 'Vector3'
+    center_floor_position: 'Vector3'
 
     @staticmethod
     def from_json(json_string: str):
@@ -101,6 +102,7 @@ class Location:
             'parent_guid': obj['parentId'],
             'center': Vector3.from_dict(obj['center']),
             'extents': Vector3.from_dict(obj['extents']),
+            'center_floor_position': Vector3.from_dict(obj['centerFloorPosition'])
         }
         return Location(**params)
 
