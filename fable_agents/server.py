@@ -99,7 +99,7 @@ async def message(sid, message_type, message_data):
                                                 recent_conversations,
                                                 personas, recent_goals, current_timestamp,
                                                 ignore_continue=True)
-            print("OPTIONS:", Datastore.last_player_options)
+            print("OPTIONS:", json.dumps(Datastore.last_player_options))
             # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
             msg = models.Message('choose-sequence-response', {"options": Datastore.last_player_options})
             return msg.type, json.dumps(msg.data)
