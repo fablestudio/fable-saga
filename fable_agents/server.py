@@ -10,7 +10,7 @@ import socketio
 from cattrs import structure, unstructure
 
 from fable_agents.datastore import Datastore
-from fable_agents.api import API
+from fable_agents.api import API, Resolution
 from fable_agents import models, api
 import logging
 
@@ -68,6 +68,8 @@ async def message(sid, message_type, message_data):
     if msg.type == 'choose-sequence':
         use_random = False
         current_timestamp: datetime.datetime = parser.parse(msg.data['timestamp'])
+        # Get the resolution (how up-resolution to go for this request).
+        resolution: str = msg.data.get('resolution', Resolution.MEDIUM)
 
         if use_random:
             # Choose a random option.
@@ -90,7 +92,7 @@ async def message(sid, message_type, message_data):
             recent_goals = Datastore.recent_goals_chosen
 
             Datastore.last_player_options = \
-                await API.gaia.create_reactions(last_update, last_observations,
+                await API.gaia.create_reactions(resolution, last_update, last_observations,
                                                 recent_sequences,
                                                 Datastore.meta_affordances,
                                                 recent_conversations,

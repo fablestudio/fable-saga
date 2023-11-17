@@ -148,6 +148,12 @@ class Format:
         return output
 
 
+class Resolution:
+    HIGH = 'HIGH'
+    MEDIUM = 'MEDIUM'
+    LOW = 'LOW'
+
+
 class GaiaAPI:
 
     observation_distance = 10
@@ -240,7 +246,7 @@ class GaiaAPI:
                                                       list(observation_events.values()))
         # return intelligent_observations
 
-    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
+    async def create_reactions(self, resolution: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
@@ -256,11 +262,21 @@ class GaiaAPI:
         # Create a list of actions to consider.
         action_options = ai.Actions.copy()
 
-        prompt = load_prompt("prompt_templates/actions_v1.yaml")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-4-1106-preview")
-        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
+        # TODO: Perhaps refine the number of actions generated or other options based on the resolution.
+        if resolution == Resolution.HIGH:
+            prompt = load_prompt("prompt_templates/actions_v1.yaml")
+            # For now we load the latest GPT-4 for high resolution.
+            model_name = "gpt-4-1106-preview"
+            retries = 1
+        else:
+            # For now we load the latest GPT-3 for all others.
+            prompt = load_prompt("prompt_templates/actions_v1.yaml")
+            model_name = "gpt-3.5-turbo-1106"
+            # If it fails, don't retry.
+            retries = 0
 
-        retries = 1
+        llm = ChatOpenAI(temperature=0.9, model_name=model_name)
+        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
         options = []
         while retries >= 0 and len(options) == 0:
             resp = await chain.arun(time=Format.simple_datetime(current_timestamp),
