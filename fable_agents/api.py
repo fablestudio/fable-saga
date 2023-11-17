@@ -54,7 +54,8 @@ class Format:
         if event.summary is not None and event.summary != '':
             del out['action'], out['action_step']
             out['summary'] = event.summary
-        if event.importance is not None and type(event.importance) == int:
+        # If the event has an importance, only show it if it's greater than 0.
+        if event.importance is not None and type(event.importance) == int and event.importance > 0:
             out['importance'] = event.importance
         return out
 
