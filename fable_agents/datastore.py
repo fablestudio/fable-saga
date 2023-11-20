@@ -114,9 +114,11 @@ class StatusUpdates:
         timestamp = list(self.status_updates)[-1]
         return timestamp, self.status_updates[timestamp]
 
-    def last_update_for_persona(self, persona_guid) -> Tuple[datetime.datetime, models.StatusUpdate]:
+    def last_update_for_persona(self, persona_guid) -> Optional[Tuple[datetime.datetime, models.StatusUpdate]]:
         timestamp, status_updates = self.last_updates()
-        updates = [u for u in self.status_updates[timestamp] if u.guid == persona_guid]
+        if timestamp is None:
+            return None
+        updates = [u for u in status_updates if u.guid == persona_guid]
         return timestamp, updates[0]
 
 

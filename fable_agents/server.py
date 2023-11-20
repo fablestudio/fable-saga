@@ -85,14 +85,30 @@ async def message(sid, message_type, message_data):
                 print(f"Persona {persona_guid} not found.")
                 return
             last_ts, last_observations = Datastore.observation_memory.last_observations(persona_guid)
-            last_ts, last_update = Datastore.status_updates.last_update_for_persona(persona_guid)
+
+            # Create a default last action in case we don't have one.
+            last_action_by_persona = models.StatusUpdate(
+                timestamp=current_timestamp,
+                guid=persona_guid,
+                sequence="idle",
+                sequence_step="considering what to do next...",
+                position=models.Vector3(0, 0, 0),
+                location_id="",
+                destination_id=""
+            )
+
+            # See if we can update the last action by the persona.
+            last_update_found = Datastore.status_updates.last_update_for_persona(persona_guid)
+            if last_update_found is not None:
+                last_action_by_persona = last_update_found[1]
+
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
             recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
             personas = list(Datastore.personas.personas.values())
             recent_goals = Datastore.recent_goals_chosen
 
             Datastore.last_player_options = \
-                await API.gaia.create_reactions(resolution, last_update, last_observations,
+                await API.gaia.create_reactions(resolution, last_action_by_persona, last_observations,
                                                 recent_sequences,
                                                 Datastore.meta_affordances,
                                                 recent_conversations,
