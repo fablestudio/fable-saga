@@ -54,7 +54,8 @@ class Format:
         if event.summary is not None and event.summary != '':
             del out['action'], out['action_step']
             out['summary'] = event.summary
-        if event.importance is not None and type(event.importance) == int:
+        # If the event has an importance, only show it if it's greater than 0.
+        if event.importance is not None and type(event.importance) == int and event.importance > 0:
             out['importance'] = event.importance
         return out
 
@@ -147,6 +148,12 @@ class Format:
         return output
 
 
+class Resolution:
+    HIGH = 'HIGH'
+    MEDIUM = 'MEDIUM'
+    LOW = 'LOW'
+
+
 class GaiaAPI:
 
     observation_distance = 10
@@ -206,38 +213,40 @@ class GaiaAPI:
             if update.position is not None and Vector3.distance(update.position, observer_update.position) <= self.observation_distance:
                 observation_events[update.guid] = ObservationEvent.from_status_update(update, observer_update)
 
-        prompt = load_prompt("prompt_templates/observation_v1.yaml")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
-        chain = LLMChain(llm=llm, prompt=prompt)
-        #pprint(observation_events)
-        formatted_obs_events = json.dumps([Format.observation_event(evt) for evt in observation_events.values()])
-        #print("create_observations:llm OBS::", formatted_obs_events)
-        resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
-                                self_description=json.dumps(Format.persona(initiator_persona)),
-                                self_update=json.dumps(Format.observer(observer_update)),
-                                update_options=formatted_obs_events)
+        #### Don't use the LLM for now. It's too slow if we're using it for every character.
+        # prompt = load_prompt("prompt_templates/observation_v1.yaml")
+        # llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo-0613")
+        # chain = LLMChain(llm=llm, prompt=prompt)
+        # #pprint(observation_events)
+        # formatted_obs_events = json.dumps([Format.observation_event(evt) for evt in observation_events.values()])
+        # #print("create_observations:llm OBS::", formatted_obs_events)
+        # resp = await chain.arun(time=Format.simple_datetime(observer_update.timestamp),
+        #                         self_description=json.dumps(Format.persona(initiator_persona)),
+        #                         self_update=json.dumps(Format.observer(observer_update)),
+        #                         update_options=formatted_obs_events)
+        #
+        # # Create observations for the observer.
+        # intelligent_observations: [Dict[str, Any]] = []
+        # #print("create_observations:llm RESP::", resp)
+        # if resp:
+        #     try:
+        #         intelligent_observations = json.loads(resp)
+        #     except json.decoder.JSONDecodeError as e:
+        #         print("Error decoding response", e, resp)
+        #         intelligent_observations = []
+        #
+        #     for observation in intelligent_observations:
+        #         guid = observation.get('guid', None)
+        #         if guid in Datastore.personas.personas.keys() and observation_events.get(guid, None):
+        #             event = observation_events[guid]
+        #             event.summary = observation.get('summary_of_activity', '')
+        #             event.importance = observation.get('summary_of_activity', 0)
+        #             Datastore.memory_vectors.memory_vectors.save_context({'observation_event': event},{'summary_of_activity': event.summary, 'importance': event.importance})
+        Datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp,
+                                                      list(observation_events.values()))
+        # return intelligent_observations
 
-        # Create observations for the observer.
-        intelligent_observations: [Dict[str, Any]] = []
-        #print("create_observations:llm RESP::", resp)
-        if resp:
-            try:
-                intelligent_observations = json.loads(resp)
-            except json.decoder.JSONDecodeError as e:
-                print("Error decoding response", e, resp)
-                intelligent_observations = []
-
-            for observation in intelligent_observations:
-                guid = observation.get('guid', None)
-                if guid in Datastore.personas.personas.keys() and observation_events.get(guid, None):
-                    event = observation_events[guid]
-                    event.summary = observation.get('summary_of_activity', '')
-                    event.importance = observation.get('summary_of_activity', 0)
-                    Datastore.memory_vectors.memory_vectors.save_context({'observation_event': event},{'summary_of_activity': event.summary, 'importance': event.importance})
-        Datastore.observation_memory.set_observations(initiator_persona.guid, observer_update.timestamp, list(observation_events.values()))
-        return intelligent_observations
-
-    async def create_reactions(self, observer_update: StatusUpdate, observations: List[ObservationEvent],
+    async def create_reactions(self, resolution: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
@@ -253,11 +262,21 @@ class GaiaAPI:
         # Create a list of actions to consider.
         action_options = ai.Actions.copy()
 
-        prompt = load_prompt("prompt_templates/actions_v1.yaml")
-        llm = ChatOpenAI(temperature=0.9, model_name="gpt-4-1106-preview")
-        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
+        # TODO: Perhaps refine the number of actions generated or other options based on the resolution.
+        if resolution == Resolution.HIGH:
+            prompt = load_prompt("prompt_templates/actions_v1.yaml")
+            # For now we load the latest GPT-4 for high resolution.
+            model_name = "gpt-4-1106-preview"
+            retries = 1
+        else:
+            # For now we load the latest GPT-3 for all others.
+            prompt = load_prompt("prompt_templates/actions_v1.yaml")
+            model_name = "gpt-3.5-turbo-1106"
+            # If it fails, don't retry.
+            retries = 0
 
-        retries = 1
+        llm = ChatOpenAI(temperature=0.9, model_name=model_name)
+        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
         options = []
         while retries >= 0 and len(options) == 0:
             resp = await chain.arun(time=Format.simple_datetime(current_timestamp),

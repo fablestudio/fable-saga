@@ -24,7 +24,7 @@ class MemoryVectors:
         self.memory_vectors = VectorStoreRetrieverMemory(retriever=retriever)
 
 
-class ObservationMemory():
+class ObservationMemory:
 
     def __init__(self):
         self.observation_memory: Dict[str, Dict[datetime, List[models.ObservationEvent]]] = {}
@@ -153,6 +153,7 @@ class ConversationMemory:
 
     def get(self, guid) -> List[models.Conversation]:
         return self.conversations.get(guid, [])
+
 
 class Datastore:
     conversations: ConversationMemory = ConversationMemory()

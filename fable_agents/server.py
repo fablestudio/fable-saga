@@ -10,7 +10,7 @@ import socketio
 from cattrs import structure, unstructure
 
 from fable_agents.datastore import Datastore
-from fable_agents.api import API
+from fable_agents.api import API, Resolution
 from fable_agents import models, api
 import logging
 
@@ -21,9 +21,6 @@ sio.attach(app)
 api.sio = sio
 
 logger = logging.getLogger('__name__')
-
-auto_observer_guids = ['wyatt_cooper']
-
 
 async def index(request):
     """Serve the client-side application."""
@@ -71,6 +68,8 @@ async def message(sid, message_type, message_data):
     if msg.type == 'choose-sequence':
         use_random = False
         current_timestamp: datetime.datetime = parser.parse(msg.data['timestamp'])
+        # Get the resolution (how up-resolution to go for this request).
+        resolution: str = msg.data.get('resolution', Resolution.MEDIUM)
 
         if use_random:
             # Choose a random option.
@@ -93,7 +92,7 @@ async def message(sid, message_type, message_data):
             recent_goals = Datastore.recent_goals_chosen
 
             Datastore.last_player_options = \
-                await API.gaia.create_reactions(last_update, last_observations,
+                await API.gaia.create_reactions(resolution, last_update, last_observations,
                                                 recent_sequences,
                                                 Datastore.meta_affordances,
                                                 recent_conversations,
@@ -115,10 +114,9 @@ async def message(sid, message_type, message_data):
         updates = [models.StatusUpdate.from_dict(dt, json.loads(u)) for u in updates_raw]
         Datastore.status_updates.add_updates(dt, updates)
 
-        for observer_guid in auto_observer_guids:
+        for observer_guid in Datastore.personas.personas:
             persona = Datastore.personas.personas[observer_guid]
             self_update = [u for u in updates if u.guid == persona.guid][0]
-
             # Create observations for the observer.
             observations = await API.gaia.create_observations(self_update, updates)
             # print("CALLBACK:", self_update.guid)
@@ -137,10 +135,7 @@ async def message(sid, message_type, message_data):
         # api.datastore.conversations.add_conversation(dt, conversation)
 
     elif msg.type == 'character-sequence-step':
-        # Ignore sequences that are not for the auto observer.
         update = models.SequenceUpdate.from_dict(msg.data)
-        if update.persona_guid not in auto_observer_guids:
-            return
         Datastore.sequence_updates.add_updates([update])
 
     elif msg.type == 'affordance-state-changed':
@@ -205,20 +200,21 @@ async def command_interface():
     loop = asyncio.get_event_loop()
     while True:
         user_input = await loop.run_in_executor(None, input)
-        if user_input.startswith('observe'):
+        if user_input.startswith('observations'):
             args = user_input.split(' ')
             if len(args) < 2:
-                print("Please specify a persona to observe.")
+                print("Please specify a persona to get observations.")
                 continue
-            if args[1] not in Datastore.personas:
-                print(f"Persona {args[1]} not found.")
+            persona_guid = args[1]
+            persona = Datastore.personas.personas.get(persona_guid, None)
+            if persona is None:
+                print(f"Persona {persona_guid} not found.")
                 continue
 
-            persona = Datastore.personas[args[1]]
-            updates = Datastore.status_updates[Datastore.status_updates.last_status_update()]
-            self_update = [u for u in updates if u.guid == persona.guid][0]
+            last_timestamp, last_observations = Datastore.observation_memory.last_observations(persona_guid)
+            print(f"RECENT OBSERVATIONS for {persona_guid} - last one at :{last_timestamp}")
+            print(json.dumps([api.Format.observation_event(evt) for evt in last_observations]))
 
-            await API.gaia.create_observations(self_update, updates)
         elif user_input.startswith('recall'):
             context = user_input.replace('recall ', '')
             memories = Datastore.memory_vectors.memory_vectors.load_memory_variables({'context': context})
