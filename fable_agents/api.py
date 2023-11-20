@@ -273,6 +273,8 @@ class GaiaAPI:
             # For now we load the latest GPT-3 for all others.
             prompt = load_prompt("prompt_templates/actions_v1.yaml")
             model_name = "gpt-3.5-turbo-1106"
+            # Remove converse_with for right now for low resolution.
+            action_options = [item for item in action_options if item.get('action') != 'converse_with']
             # If it fails, don't retry.
             retries = 0
 
