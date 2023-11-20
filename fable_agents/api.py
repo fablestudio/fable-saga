@@ -72,6 +72,7 @@ class Format:
             else:
                 out['destination_distance'] = str(float(Vector3.distance(
                     status_update.position, destination.center_floor_position))) + "m",
+        return out
 
     @staticmethod
     def simple_datetime(dt: datetime):
