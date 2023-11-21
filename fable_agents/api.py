@@ -278,7 +278,8 @@ class GaiaAPI:
             # If it fails, don't retry.
             retries = 0
 
-        llm = ChatOpenAI(temperature=0.9, model_name=model_name)
+        llm = ChatOpenAI(temperature=0.9, model_name=model_name, model_kwargs={
+            "response_format": {"type": "json_object"}})
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
         options = []
         while retries >= 0 and len(options) == 0:
