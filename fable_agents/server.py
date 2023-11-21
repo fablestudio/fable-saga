@@ -70,6 +70,7 @@ async def message(sid, message_type, message_data):
         current_timestamp: datetime.datetime = parser.parse(msg.data['timestamp'])
         # Get the resolution (how up-resolution to go for this request).
         resolution: str = msg.data.get('resolution', Resolution.MEDIUM)
+        default_action = msg.data.get('default_action', None)
 
         if use_random:
             # Choose a random option.

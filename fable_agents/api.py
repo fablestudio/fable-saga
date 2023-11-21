@@ -251,7 +251,7 @@ class GaiaAPI:
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
-                               ignore_continue: bool = False) -> List[Dict[str, Any]]:
+                               default_action: str) -> List[Dict[str, Any]]:
 
         initiator_persona = Datastore.personas.personas.get(persona_id, None)
         if initiator_persona is None:
@@ -277,6 +277,11 @@ class GaiaAPI:
             action_options = [item for item in action_options if item.get('action') != 'converse_with']
             # If it fails, don't retry.
             retries = 0
+
+        # Append the default action to the list of options if one is provided.
+        if default_action is not None and default_action != '':
+            action_options.append({'action': 'default_action',
+                                   'description': "Do what you would normally do in this context: " + default_action, 'parameters': {}})
 
         llm = ChatOpenAI(temperature=0.9, model_name=model_name, model_kwargs={
             "response_format": {"type": "json_object"}})
