@@ -103,20 +103,23 @@ async def message(sid, message_type, message_data):
                 last_action_by_persona = last_update_found[1]
 
             recent_sequences = Datastore.sequence_updates.last_updates_for_persona(persona_guid, 10)
-            recent_conversations = Datastore.conversations.get(persona_guid)[-10:]
+            recent_conversations = list(Datastore.conversations.get(persona_guid)[-10:])
             personas = list(Datastore.personas.personas.values())
-            recent_goals = Datastore.recent_goals_chosen
+            recent_goals = list(Datastore.recent_goals_chosen.get(persona_guid, []))
 
-            Datastore.last_player_options = \
-                await API.gaia.create_reactions(resolution, last_action_by_persona, last_observations,
+            response = await API.gaia.create_reactions(resolution, persona_guid, last_action_by_persona, last_observations,
                                                 recent_sequences,
                                                 Datastore.meta_affordances,
                                                 recent_conversations,
-                                                personas, recent_goals, current_timestamp,
-                                                ignore_continue=True)
-            print("OPTIONS:", json.dumps(Datastore.last_player_options))
-            # options = [{'action': 'interact', 'parameters': {'simobject_guid': 'Bank', 'affordance': 'Rob Bank'}}]
-            msg = models.Message('choose-sequence-response', {"options": Datastore.last_player_options})
+                                                personas, recent_goals, current_timestamp, default_action,
+                                                )
+            options = response.get('options', [])
+            print("OPTIONS:", response)
+            Datastore.last_player_options[persona_guid] = options
+            msg = models.Message('choose-sequence-response')
+            msg.data['options'] = options
+            msg.data['persona_guid'] = persona_guid
+
             return msg.type, json.dumps(msg.data)
 
 
@@ -158,16 +161,24 @@ async def message(sid, message_type, message_data):
         await API.simulation.reload_affordances([], None)
 
     elif msg.type == 'player-option-choice':
-        if Datastore.last_player_options is None:
+        persona_guid = msg.data['persona_guid']
+
+        previous_options = Datastore.last_player_options.get(persona_guid, [])
+        options = msg.data.get('options', [])
+        choice_index = msg.data.get("choiceIndex")
+        if not previous_options == options or not choice_index:
             return
-        choice_index = msg.data["choiceIndex"]
-        if choice_index < 0 or choice_index >= len(Datastore.last_player_options):
+        if choice_index < 0 or choice_index >= len(previous_options):
             return
-        Datastore.recent_goals_chosen.append(Datastore.last_player_options[choice_index]['parameters']['goal'])
-        Datastore.last_player_options = None
+
+        # Add the goal to the list of recent goals.
+        # TODO: Add the timestamp of the goal at least.
+        goals = Datastore.recent_goals_chosen.get(persona_guid, [])
+        goals.append(previous_options[choice_index]['parameters']['goal'])
+        Datastore.recent_goals_chosen[persona_guid] = goals
 
     else:
-        logger.warning("handler not found for message type:" + msg.type)
+        logger.warning("handler not found for message type:" + msg.type + " " + str(msg.data))
 
 
 @sio.on('heartbeat')

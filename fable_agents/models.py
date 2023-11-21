@@ -73,7 +73,7 @@ class MetaAffordanceProvider:
 @define(slots=True)
 class Message:
     type: str
-    data: dict
+    data: dict = {}
 
 
 @define(slots=True)

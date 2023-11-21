@@ -247,13 +247,13 @@ class GaiaAPI:
                                                       list(observation_events.values()))
         # return intelligent_observations
 
-    async def create_reactions(self, resolution: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
+    async def create_reactions(self, resolution: str, persona_id: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
                                ignore_continue: bool = False) -> List[Dict[str, Any]]:
 
-        initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
+        initiator_persona = Datastore.personas.personas.get(persona_id, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             return []
@@ -283,6 +283,7 @@ class GaiaAPI:
         options = []
         while retries >= 0 and len(options) == 0:
             resp = await chain.arun(time=Format.simple_datetime(current_timestamp),
+                                    persona_guid=persona_id,
                                     self_description=json.dumps(Format.persona(initiator_persona)),
                                     self_update=json.dumps(Format.observer(observer_update)),
                                     observations=json.dumps([Format.observation_event(evt) for evt in observations]),
@@ -292,7 +293,7 @@ class GaiaAPI:
                                     personas=json.dumps([Format.persona_short(persona) for persona in personas]),
                                     interact_options=json.dumps(
                                         [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
-                                    recent_goals=json.dumps(recent_goals[:10]),
+                                    recent_goals=json.dumps(recent_goals),
                                     locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values())))
                                     )
 

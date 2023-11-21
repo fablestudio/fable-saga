@@ -1,8 +1,8 @@
 _type: prompt
 input_variables:
-    ["time", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals", "locations"]
+    ["time", "persona_guid", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals", "locations"]
 template: |
-    You are an NPC character in a small western town of the late 1800s and described as follows:
+    You are {persona_guid} an NPC character in a small western town of the late 1800s and described as follows:
     {self_description}
     
     The full list of characters in this world are the following:
