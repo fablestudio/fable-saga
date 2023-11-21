@@ -166,5 +166,5 @@ class Datastore:
     sequence_updates: SequenceUpdates = SequenceUpdates()
     memory_vectors: MemoryVectors = MemoryVectors()
     locations: Locations = Locations()
-    last_player_options: Optional[List[Dict[str, Any]]] = None
-    recent_goals_chosen: List[str] = []
+    last_player_options: Dict[str, Optional[List[Dict[str, Any]]]] = {}
+    recent_goals_chosen: Dict[str, List[str]] = {}

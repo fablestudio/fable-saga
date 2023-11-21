@@ -247,13 +247,13 @@ class GaiaAPI:
                                                       list(observation_events.values()))
         # return intelligent_observations
 
-    async def create_reactions(self, resolution: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
+    async def create_reactions(self, resolution: str, persona_id: str, observer_update: StatusUpdate, observations: List[ObservationEvent],
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
-                               ignore_continue: bool = False) -> List[Dict[str, Any]]:
+                               default_action: str) -> List[Dict[str, Any]]:
 
-        initiator_persona = Datastore.personas.personas.get(observer_update.guid, None)
+        initiator_persona = Datastore.personas.personas.get(persona_id, None)
         if initiator_persona is None:
             print('Error: persona not found.')
             return []
@@ -278,11 +278,18 @@ class GaiaAPI:
             # If it fails, don't retry.
             retries = 0
 
-        llm = ChatOpenAI(temperature=0.9, model_name=model_name)
+        # Append the default action to the list of options if one is provided.
+        if default_action is not None and default_action != '':
+            action_options.append({'action': 'default_action',
+                                   'description': "Do what you would normally do in this context: " + default_action, 'parameters': {}})
+
+        llm = ChatOpenAI(temperature=0.9, model_name=model_name, model_kwargs={
+            "response_format": {"type": "json_object"}})
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
         options = []
         while retries >= 0 and len(options) == 0:
             resp = await chain.arun(time=Format.simple_datetime(current_timestamp),
+                                    persona_guid=persona_id,
                                     self_description=json.dumps(Format.persona(initiator_persona)),
                                     self_update=json.dumps(Format.observer(observer_update)),
                                     observations=json.dumps([Format.observation_event(evt) for evt in observations]),
@@ -292,7 +299,7 @@ class GaiaAPI:
                                     personas=json.dumps([Format.persona_short(persona) for persona in personas]),
                                     interact_options=json.dumps(
                                         [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
-                                    recent_goals=json.dumps(recent_goals[:10]),
+                                    recent_goals=json.dumps(recent_goals),
                                     locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values())))
                                     )
 

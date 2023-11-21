@@ -1,8 +1,8 @@
 _type: prompt
 input_variables:
-    ["time", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals", "locations"]
+    ["time", "persona_guid", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals", "locations"]
 template: |
-    You are an NPC character in a small western town of the late 1800s and described as follows:
+    You are {persona_guid} an NPC character in a small western town of the late 1800s and described as follows:
     {self_description}
     
     The full list of characters in this world are the following:
@@ -19,10 +19,6 @@ template: |
     
     You had the following conversations recently:
     {conversations}
-  
-    Staying true to your character's personality and circumstance, create a list of actions you would like to take.
-    You can choose between one and four actions created from the following json:
-    {action_options}
     
     If you choose the interact options, here are the simobjects you can interact with:
     {interact_options}
@@ -33,15 +29,23 @@ template: |
     Some recent goals were:
     {recent_goals}
     
-    In the story, a dead native has been found outside of town and the sheriff is investigating. One of the town's people is the killer.
+    Story Arcs:
+    * A dead native has been found outside of town and the sheriff is investigating.
+    * One of the town's people is the killer.
 
+    Generate a list of different actions that your character should take next using the following guidelines:
+    * Provide a goal for your character to achieve as well as the action.
+    * Do not make up new characters or actions.
+    * Staying true to your character's personality and circumstances.
+    * Use your observations and conversations to inform your actions.
+    * Only use provided actions to create your list and do not make up new actions.
+    * Do not do the same thing again if you have already done it.
+    * Advance the story by choosing actions that will help you achieve your goals.
+    * You can only use the following actions to create your list:
+        {action_options}
     
-    Generate a series of events that lead to quick conclusion of this story. Only generate between one and four actions for now. Do not make up new characters or activities:
-    
-    Use the following json format:
-    [
-        {{"action": <choice of action>, "parameters": {{<action parameters as json>}}}}
-    ]
-
-#    Take careful note of what you are already doing and if you want to continue doing it, just choose the "continue" action.
-
+    Generate a compact json list of actions that you want to take next as {persona_guid}. Only generate valid json.
+    Use the following json format to specify the parameters:
+            {{"options": [
+                {{"action": <choice of action>, "parameters": {{<action parameters as json>}}}}
+            ]}}
