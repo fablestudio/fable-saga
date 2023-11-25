@@ -11,7 +11,7 @@ from cattrs import structure, unstructure
 
 from fable_agents.datastore import Datastore
 from fable_agents.api import API, Resolution
-from fable_agents import models, api
+from fable_agents import models, api, ai
 import logging
 
 sio = socketio.AsyncServer()
@@ -64,6 +64,18 @@ async def message(sid, message_type, message_data):
     except json.decoder.JSONDecodeError:
         parsed_data = message_data
     msg = models.Message(message_type, parsed_data)
+
+    if msg.type == 'new-memories':
+        memories = msg.data.get('memories', [])
+
+        reset = msg.data.get('reset', True)
+        if reset:
+            Datastore.memories.reset()
+
+        for memory in memories:
+            memory = models.Memory.from_dict(memory)
+            API.agents.get(memory.context_id).memories().append(memory)
+            print("MEMORY ADDED:", memory)
 
     if msg.type == 'choose-sequence':
         use_random = False

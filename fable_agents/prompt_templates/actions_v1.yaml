@@ -1,6 +1,7 @@
 _type: prompt
 input_variables:
-    ["time", "persona_guid", "self_description", "self_update", "observations", "sequences", "action_options", "interact_options", "conversations", "personas", "recent_goals", "locations"]
+    ["time", "persona_guid", "self_description", "self_update", "observations", "sequences", "action_options",
+     "interact_options", "conversations", "personas", "recent_goals", "locations", "memories"]
 template: |
     You are {persona_guid} an NPC character in a small western town of the late 1800s and described as follows:
     {self_description}
@@ -28,6 +29,9 @@ template: |
       
     Some recent goals were:
     {recent_goals}
+    
+    You have the following memories:
+    {memories}
     
     Story Arcs:
     * A dead native has been found outside of town and the sheriff is investigating.

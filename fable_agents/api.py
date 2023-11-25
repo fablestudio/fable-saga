@@ -5,9 +5,10 @@ from typing import List, Callable, Optional, Any, Dict
 
 from cattr import unstructure
 
-from fable_agents import ai
+from fable_agents import ai, models
+from fable_agents.ai import Agent
 from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider, \
-    Conversation, Location, LocationNode
+    Conversation, Location, LocationNode, EntityId
 from fable_agents.datastore import Datastore, MetaAffordances
 import socketio
 
@@ -146,6 +147,17 @@ class Format:
             # Only add the root nodes. The rest will be included in the tree.
             if node.parent is None:
                 output[node.location.name] = gen_tree(node)
+        return output
+
+    @staticmethod
+    def memories(memories: List[models.Memory], current_datetime: datetime) -> List[Dict[str, str]]:
+        output = []
+        for memory in memories:
+            output.append({
+                'time_ago': Format.simple_time_ago(memory.timestamp, current_datetime),
+                'summary': memory.summary,
+                # TODO: Add more details like the positions and entity ids perhaps.
+            })
         return output
 
 
@@ -300,7 +312,8 @@ class GaiaAPI:
                                     interact_options=json.dumps(
                                         [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
                                     recent_goals=json.dumps(recent_goals),
-                                    locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values())))
+                                    locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values()))),
+                                    memories=json.dumps(Format.memories(Datastore.memories.get(persona_id), current_timestamp)),
                                     )
 
             try:
@@ -317,6 +330,9 @@ class GaiaAPI:
 
 
 class SimulationAPI:
+
+    def get_agent(self, guid: str):
+        return Datastore.agents.get(guid)
 
     async def reload_personas(self, guids: List[str], on_complete: Optional[Callable[[], None]]):
         """
@@ -424,6 +440,20 @@ class SimulationAPI:
             if debug: print('emit', 'message', type, json.dumps(data))
             await sio.emit('message', (type, json.dumps(data)))
 
+
+class Agents:
+
+    def __init__(self):
+        self.agents: Dict[str, Agent] = {}
+
+    def get(self, guid: EntityId, create=True) -> Agent:
+        found = self.agents.get(guid, None)
+        if not found and create:
+            found = self.agents[guid] = Agent(guid)
+        return found
+
+
 class API:
     simulation: SimulationAPI = SimulationAPI()
     gaia: GaiaAPI = GaiaAPI()
+    agents: Agents = Agents()

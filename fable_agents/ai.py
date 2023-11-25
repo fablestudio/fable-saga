@@ -1,12 +1,22 @@
+from typing import List
+
+from fable_agents import models
+from fable_agents.datastore import Datastore
+
+
 class Agent:
 
-    def __init__(self, guid, location):
-        self.guid = guid
-        self.location = location
+    def __init__(self, guid):
+        self.persona = Datastore.personas.get_or_create(guid)
 
     def persona(self):
-        #return datastore.personas[self.guid]
-        return None
+        return self.persona
+
+    def memories(self) -> List[models.Memory]:
+        return Datastore.memories.get(self.persona.guid)
+
+    def knowledge_graph(self):
+        return Datastore.memories.knowledge_graph(self.persona.guid)
 
 
 Actions = [
