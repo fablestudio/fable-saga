@@ -77,7 +77,7 @@ async def message(sid, message_type, message_data):
             API.agents.get(memory.context_id).memories().append(memory)
             print("MEMORY ADDED:", memory)
 
-    if msg.type == 'choose-sequence':
+    elif msg.type == 'choose-sequence':
         use_random = False
         current_timestamp: datetime.datetime = parser.parse(msg.data['timestamp'])
         # Get the resolution (how up-resolution to go for this request).
