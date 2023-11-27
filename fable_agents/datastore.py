@@ -50,6 +50,11 @@ class Personas:
     def __init__(self):
         self.personas: Dict[str, models.Persona] = {}
 
+    def get_or_create(self, guid) -> models.Persona:
+        if guid not in self.personas:
+            self.personas[guid] = models.Persona(guid)
+        return self.personas[guid]
+
     def random_personas(self, n):
         keys = list(self.personas.keys())
         random.shuffle(keys)
@@ -138,6 +143,30 @@ class SequenceUpdates:
         return self.sequence_updates.get(persona_id, [])[-n:]
 
 
+class Memories:
+
+    def __init__(self):
+        self._memories: Dict[str, List[models.Memory]] = {}
+
+    def get(self, persona_id: models.EntityId) -> List[models.Memory]:
+        if persona_id not in self._memories:
+            self._memories[persona_id] = []
+        return self._memories.get(persona_id)
+
+    def add(self, persona_id, memory: models.Memory):
+        self.get(persona_id).append(memory)
+
+    def reset(self):
+        self._memories.clear()
+
+    # def knowledge_graph(self, persona_id) -> models.KnowledgeGraph:
+    #     memories = self._memories.get(persona_id, [])
+    #     knowledge_graph = models.KnowledgeGraph()
+    #     for memory in memories:
+    #         knowledge_graph.add_memory(memory)
+
+
+
 class ConversationMemory:
 
     conversations: Dict[str, List[models.Conversation]] = {}
@@ -168,3 +197,4 @@ class Datastore:
     locations: Locations = Locations()
     last_player_options: Dict[str, Optional[List[Dict[str, Any]]]] = {}
     recent_goals_chosen: Dict[str, List[str]] = {}
+    memories: Memories = Memories()

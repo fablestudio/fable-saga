@@ -1,12 +1,12 @@
 import json
 import datetime
-from typing import Any, Optional, List
+from typing import Any, Optional, List, NewType, Dict
 
 from attrs import define
 from cattrs import structure, unstructure
 from dateutil import parser
 
-
+EntityId = NewType('EntityId', str)
 
 class World:
     last_update: datetime.datetime
@@ -202,6 +202,11 @@ class Vector3:
         return Vector3(**params)
 
     @staticmethod
+    def from_json(json_string):
+        obj = json.loads(json_string)
+        return Vector3.from_dict(obj)
+
+    @staticmethod
     def distance(v1, v2):
         return ((v1.x - v2.x)**2 + (v1.y - v2.y)**2 + (v1.z - v2.z)**2)**0.5
 
@@ -269,8 +274,46 @@ class SequenceUpdate:
         }
         return SequenceUpdate(**params)
 
+
 @define(slots=True)
 class LocationNode:
     location: Location
     parent: Optional['LocationNode']
     children: List['LocationNode']
+
+
+@define(slots=True)
+class Memory:
+    context_id: EntityId
+    summary: str
+    timestamp: datetime.datetime
+    position: Vector3
+    entity_ids: List[EntityId]
+
+    @classmethod
+    def from_dict(cls, obj) -> 'Memory':
+        params = {
+            'timestamp': parser.parse(obj['timestamp']),
+            'context_id': obj['contextId'],
+            'summary': obj['summary'],
+            'position': Vector3.from_json(obj['position']),
+            'entity_ids': obj['entityIds']
+        }
+        return Memory(**params)
+
+
+# @define(slots=True)
+# class KnowledgeGraph:
+#     nodes: Dict[EnitytId, List[Memory]]
+#
+#     def memories(self, entity_id: EnitytId) -> List[Memory]:
+#         memories = self.nodes.get(entity_id, None)
+#         if memories is None:
+#             return []
+#         return memories
+#
+#     def memories_of(self, entity_id: EnitytId, child_id: EnitytId) -> List[Memory]:
+#         memories = self.nodes.get(entity_id, None)
+#         if memories is None:
+#             return []
+#         return [m for m in memories if child_id in m.entityIds]
