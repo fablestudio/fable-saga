@@ -52,7 +52,7 @@ Actions = [
         'description': "Think about things in order to synthesize new ideas and specific plans",
         'parameters': {
             'focus': '<str: the focus of the reflection>',
-            'result:': '<str: the new specific enlightenment after reflecting.>',
+            'result:': '<str: The result of the reflection, e.g. a new plan or understanding you will remember.>',
             'goal': '<str: goal of reflecting>',
         },
     },
