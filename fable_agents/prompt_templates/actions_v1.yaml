@@ -49,8 +49,9 @@ template: |
     * You can only use the following actions to create your list:
         {action_options}
     
-    Generate a compact json list of actions that you want to take next as {persona_guid}. Only generate valid json.
+    Generate a compact json list of actions that you want to take next as {persona_guid}. Then score each option. Only generate valid json.
     Use the following json format to specify the parameters:
             {{"options": [
                 {{"action": <choice of action>, "parameters": {{<action parameters as json>}}}}
+            ],"scores": [<list[float]: scores for each action in the order listed. -1.0 is terrible, 0 is neutral, and 1.0 the best action ever.>]
             ]}}
