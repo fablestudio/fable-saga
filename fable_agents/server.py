@@ -127,10 +127,12 @@ async def message(sid, message_type, message_data):
                                                 personas, recent_goals, current_timestamp, default_action,
                                                 )
             options = response.get('options', [])
-            print("OPTIONS:", response)
+            scores = response.get('scores', [])
+            print("OPTIONS:", json.dumps(response))
             Datastore.last_player_options[persona_guid] = options
             msg = models.Message('choose-sequence-response')
             msg.data['options'] = options
+            msg.data['scores'] = scores
             msg.data['persona_guid'] = persona_guid
 
             return msg.type, json.dumps(msg.data)
