@@ -198,3 +198,4 @@ class Datastore:
     last_player_options: Dict[str, Optional[List[Dict[str, Any]]]] = {}
     recent_goals_chosen: Dict[str, List[str]] = {}
     memories: Memories = Memories()
+    extra: str

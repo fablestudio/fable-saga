@@ -83,6 +83,7 @@ async def message(sid, message_type, message_data):
         # Get the resolution (how up-resolution to go for this request).
         resolution: str = msg.data.get('resolution', Resolution.MEDIUM)
         default_action = msg.data.get('default_action', None)
+        Datastore.extra = msg.data.get('extra', '')
 
         if use_random:
             # Choose a random option.
