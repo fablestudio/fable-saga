@@ -314,7 +314,7 @@ class GaiaAPI:
                                     recent_goals=json.dumps(recent_goals),
                                     locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values()))),
                                     memories=json.dumps(Format.memories(Datastore.memories.get(persona_id), current_timestamp)),
-                                    )
+                                    extra=json.dumps(Datastore.extra))
 
             try:
                 options = json.loads(resp)

@@ -1,9 +1,9 @@
 _type: prompt
 input_variables:
     ["time", "persona_guid", "self_description", "self_update", "observations", "sequences", "action_options",
-     "interact_options", "conversations", "personas", "recent_goals", "locations", "memories"]
+     "interact_options", "conversations", "personas", "recent_goals", "locations", "memories", "extra"]
 template: |
-    You are {persona_guid} an NPC character in a small western town of the late 1800s and described as follows:
+    You are an NPC character named {persona_guid} and are described as follows:
     {self_description}
     
     The full list of characters in this world are the following:
@@ -33,10 +33,8 @@ template: |
     You have the following memories:
     {memories}
     
-    Narrative Plan:
-    * A dead native has been found outside of town and the sheriff, wyatt_cooper is investigating.
-    * One of the town's people is the killer, but no one knows who at the start of the day.
-    * The killer is found out and arrested by the end of the day.
+    Additional information:
+    {extra}
 
     Generate a list of different actions that your character should take next using the following guidelines:
     * Provide a goal for your character to achieve as well as the action.
