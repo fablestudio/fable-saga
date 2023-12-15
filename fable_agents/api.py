@@ -305,7 +305,7 @@ class GaiaAPI:
                                     self_description=json.dumps(Format.persona(initiator_persona)),
                                     self_update=json.dumps(Format.observer(observer_update)),
                                     observations=json.dumps([Format.observation_event(evt) for evt in observations]),
-                                    sequences=json.dumps(Format.sequence_updates(sequences, current_timestamp)),
+                                    sequences=json.dumps([]), # Ignore sequence data for now as it's noisy. Format.sequence_updates(sequences, current_timestamp)),
                                     action_options=json.dumps(action_options),
                                     conversations=json.dumps([Format.conversation(convo, current_timestamp) for convo in conversations]),
                                     personas=json.dumps([Format.persona_short(persona) for persona in personas]),
