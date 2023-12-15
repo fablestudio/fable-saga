@@ -1,0 +1,182 @@
+  - guid: "bridge_helm_console"
+    location: "bridge"
+    affordances:
+      - "navigate"
+      - "set_course"
+      - "engage_thrusters"
+
+  - guid: "captains_chair"
+    location: "bridge"
+    affordances:
+      - "sit"
+      - "access_ship_logs"
+      - "issue_commands"
+
+  - guid: "tactical_station"
+    location: "bridge"
+    affordances:
+      - "scan_for_threats"
+      - "manage_shields"
+      - "fire_weapons"
+
+  - guid: "communications_array"
+    location: "bridge"
+    affordances:
+      - "send_messages"
+      - "receive_transmissions"
+      - "decrypt_communication"
+
+  - guid: "engine_control_panel"
+    location: "engine_room"
+    affordances:
+      - "monitor_engine_status"
+      - "regulate_power"
+      - "conduct_repairs"
+
+  - guid: "fuel_cell_stack"
+    location: "engine_room"
+    affordances:
+      - "replace_fuel_cells"
+      - "check_fuel_levels"
+
+  - guid: "toolbox_vance"
+    location: "engine_room"
+    affordances:
+      - "borrow_tools"
+      - "return_tools"
+      - "organize_tools"
+
+  - guid: "cargo_clamp_control"
+    location: "cargo_hold"
+    affordances:
+      - "secure_cargo"
+      - "release_cargo"
+
+  - guid: "life_support_system"
+    location: "cargo_hold"
+    affordances:
+      - "monitor_oxygen_levels"
+      - "adjust_temperature"
+
+  - guid: "food_dispenser"
+    location: "mess_hall"
+    affordances:
+      - "order_meal"
+      - "dispense_snack"
+
+  - guid: "coffee_machine"
+    location: "mess_hall"
+    affordances:
+      - "brew_coffee"
+      - "select_beverage"
+
+  - guid: "rec_table"
+    location: "mess_hall"
+    affordances:
+      - "play_games"
+      - "socialize"
+
+  - guid: "med_scanner"
+    location: "medical_bay"
+    affordances:
+      - "diagnose_injury"
+      - "assess_health"
+
+  - guid: "surgery_kit"
+    location: "medical_bay"
+    affordances:
+      - "perform_surgery"
+      - "sterilize_instruments"
+
+  - guid: "autodoc"
+    location: "medical_bay"
+    affordances:
+      - "activate_autodoc"
+      - "configure_treatment"
+
+  - guid: "environmental_suit_rack"
+    location: "airlock"
+    affordances:
+      - "don_suit"
+      - "store_suit"
+
+  - guid: "cargo_manifest_terminal"
+    location: "cargo_hold"
+    affordances:
+      - "update_manifest"
+      - "review_cargo"
+
+  - guid: "hydroponics_unit"
+    location: "linh_room"
+    affordances:
+      - "plant_seeds"
+      - "harvest_crops"
+      - "adjust_lighting"
+
+  - guid: "elara_personal_console"
+    location: "elara_room"
+    affordances:
+      - "access_personal_logs"
+      - "communicate_privately"
+
+  - guid: "zero_grav_treadmill"
+    location: "nyah_room"
+    affordances:
+      - "exercise"
+      - "adjust_intensity"
+
+  - guid: "personal_locker"
+    location: "crew_quarters_corridor"
+    affordances:
+      - "store_items"
+      - "retrieve_items"
+
+  - guid: "holo_display"
+    location: "bridge"
+    affordances:
+      - "view_star_maps"
+      - "conduct_meetings"
+
+  - guid: "vance_engine_diagnostics"
+    location: "vance_room"
+    affordances:
+      - "run_diagnostics"
+      - "review_engine_specs"
+
+  - guid: "crew_photo_wall"
+    location: "mess_hall"
+    affordances:
+      - "view_photos"
+      - "add_new_photo"
+
+  - guid: "relaxation_chair"
+    location: "linh_room"
+    affordances:
+      - "sit"
+      - "recline"
+
+  - guid: "weapon_rack_nyah"
+    location: "nyah_room"
+    affordances:
+      - "equip_weapon"
+      - "maintain_weapon"
+      - "store_weapon"
+
+  - guid: "navigation_charts"
+    location: "thomas_room"
+    affordances:
+      - "study_charts"
+      - "plan_routes"
+
+  - guid: "cargo_loafer"
+    location: "cargo_hold"
+    affordances:
+      - "load_cargo"
+      - "offload_cargo"
+
+  - guid: "engineer_whiteboard"
+    location: "engine_room"
+    affordances:
+      - "draw_diagrams"
+      - "erase_notes"
+      - "post_reminders"

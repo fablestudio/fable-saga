@@ -1,0 +1,15 @@
+_type: prompt
+input_variables:
+    ["context", "skills"]
+template: |
+    Generate a list of different action options that your character should take next using the following skills:
+    {skills}
+
+    {context}
+    
+    Generate a list of different action options that your character should take. Then score each option. Only generate valid JSON.
+    Use the following JSON format to specify the parameters:
+            {{"options": [
+                {{"action": <choice of action>, "parameters": {{<action parameters as json>}}}}
+            ],"scores": [<list[float]: scores for each action in the order listed. -1.0 is terrible, 0 is neutral, and 1.0 the best action ever.>]
+            ]}}

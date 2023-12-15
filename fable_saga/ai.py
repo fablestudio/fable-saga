@@ -1,7 +1,7 @@
 from typing import List
 
-from fable_agents import models
-from fable_agents.datastore import Datastore
+from fable_saga import models
+from fable_saga.datastore import Datastore
 
 
 class Agent:

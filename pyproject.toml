@@ -15,6 +15,7 @@ langchain = {extras = ["llms"], version = "^0.0.293"}
 python-dateutil = "^2.8.2"
 faiss-cpu = "^1.7.4"
 tiktoken = "^0.5.1"
+datetime = "^5.3"
 
 
 [build-system]

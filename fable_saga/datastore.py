@@ -1,5 +1,4 @@
 from typing import Dict, List, Tuple, Optional, Any
-import models
 import random
 import datetime
 from langchain.memory import VectorStoreRetrieverMemory
@@ -9,19 +8,20 @@ import faiss
 from langchain.docstore import InMemoryDocstore
 from langchain.vectorstores import FAISS
 
+from . import models
 
-class MemoryVectors:
-
-    def __init__(self):
-        # Set up the vector store
-        embedding_size = 1536  # Dimensions of the OpenAIEmbeddings
-        index = faiss.IndexFlatL2(embedding_size)
-        embedding_fn = OpenAIEmbeddings().embed_query
-        vectorstore = FAISS(embedding_fn, index, InMemoryDocstore({}), {})
-        retriever = vectorstore.as_retriever(search_kwargs={'k': 6, 'lambda_mult': 0.25}, )
-
-        # Set up the memory
-        self.memory_vectors = VectorStoreRetrieverMemory(retriever=retriever)
+# class MemoryVectors:
+#
+#     def __init__(self):
+#         # Set up the vector store
+#         embedding_size = 1536  # Dimensions of the OpenAIEmbeddings
+#         index = faiss.IndexFlatL2(embedding_size)
+#         embedding_fn = OpenAIEmbeddings().embed_query
+#         vectorstore = FAISS(embedding_fn, index, InMemoryDocstore({}), {})
+#         retriever = vectorstore.as_retriever(search_kwargs={'k': 6, 'lambda_mult': 0.25}, )
+#
+#         # Set up the memory
+#         self.memory_vectors = VectorStoreRetrieverMemory(retriever=retriever)
 
 
 class ObservationMemory:
@@ -184,18 +184,3 @@ class ConversationMemory:
 
     def get(self, guid) -> List[models.Conversation]:
         return self.conversations.get(guid, [])
-
-
-class Datastore:
-    conversations: ConversationMemory = ConversationMemory()
-    observation_memory: ObservationMemory = ObservationMemory()
-    personas: Personas = Personas()
-    meta_affordances: MetaAffordances = MetaAffordances()
-    status_updates: StatusUpdates = StatusUpdates()
-    sequence_updates: SequenceUpdates = SequenceUpdates()
-    memory_vectors: MemoryVectors = MemoryVectors()
-    locations: Locations = Locations()
-    last_player_options: Dict[str, Optional[List[Dict[str, Any]]]] = {}
-    recent_goals_chosen: Dict[str, List[str]] = {}
-    memories: Memories = Memories()
-    extra: str

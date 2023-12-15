@@ -5,11 +5,19 @@ from typing import Any, Optional, List, NewType, Dict
 from attrs import define
 from cattrs import structure, unstructure
 from dateutil import parser
+from abc import ABC, abstractmethod
+
 
 EntityId = NewType('EntityId', str)
 
 class World:
     last_update: datetime.datetime
+
+
+class EntityInterface(ABC):
+   @abstractmethod
+   def id(self) -> EntityId:
+      pass
 
 
 @define(slots=True)

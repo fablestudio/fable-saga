@@ -5,11 +5,11 @@ from typing import List, Callable, Optional, Any, Dict
 
 from cattr import unstructure
 
-from fable_agents import ai, models
-from fable_agents.ai import Agent
+from fable_saga import ai, models
+from fable_saga.ai import Agent
 from models import Persona, Vector3, StatusUpdate, Message, ObservationEvent, SequenceUpdate, MetaAffordanceProvider, \
     Conversation, Location, LocationNode, EntityId
-from fable_agents.datastore import Datastore, MetaAffordances
+from fable_saga.datastore import Datastore, MetaAffordances
 import socketio
 
 from langchain.chat_models import ChatOpenAI

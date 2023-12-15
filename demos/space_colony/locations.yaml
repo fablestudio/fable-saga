@@ -1,0 +1,81 @@
+  - guid: "bridge"
+    name: "Bridge"
+    description: "The Bridge serves as the nerve center of the ship, equipped with advanced navigation consoles, command stations, and a panoramic viewport offering a commanding view of space. It houses the captain's chair, tactical operations, and communications equipment, ensuring optimal control during space travel and cargo operations."
+    connections:
+      - "engine_room"
+      - "crew_quarters_corridor"
+
+  - guid: "engine_room"
+    name: "Engine Room"
+    description: "Located at the heart of the ship, the Engine Room is a bustling center of activity. It's filled with engine cores, fuel cells, and life-support systems. The walls are lined with conduits and meters that the engineer monitors closely to keep the ship running smoothly and efficiently, despite the distant hum of the powerful engines."
+    connections:
+      - "bridge"
+      - "cargo_hold"
+
+  - guid: "crew_quarters_corridor"
+    name: "Crew Quarters Corridor"
+    description: "The corridor connects individual crew quarters offering a modicum of privacy and personal space in the confined environment of the ship. Here, one can find access to each of the crew's personal cabins, with entrance doors flanked by nameplates and occasionally personal decorations."
+    connections:
+      - "bridge"
+      - "mess_hall"
+      - "thomas_room"
+      - "elara_room"
+      - "linh_room"
+      - "vance_room"
+      - "nyah_room"
+
+  - guid: "cargo_hold"
+    name: "Cargo Hold"
+    description: "The immense Cargo Hold is lined with magnetic clamps and security nets to keep the goods in place during transit. It's a utilitarian space, lit by harsh artificial lights and filled with the persistent echo of machinery. Cargo containers are carefully organized and monitored to ensure they reach their destination intact."
+    connections:
+      - "engine_room"
+      - "medical_bay"
+
+  - guid: "mess_hall"
+    name: "Mess Hall"
+    description: "A social hotspot of the ship, the Mess Hall offers a communal dining area that doubles as a lounge. It's furnished with an assortment of tables, benches, and food dispensers. The walls are adorned with mementos from past journeys and the air carries the mixed aroma of cooked meals and coffee, providing a comfortable escape from the demands of space travel."
+    connections:
+      - "crew_quarters_corridor"
+
+  - guid: "medical_bay"
+    name: "Medical Bay"
+    description: "The sterile environment of the Medical Bay is a sanctuary for the sick and injured. It is stocked with medical equipment, supplies, and an operating table. State-of-the-art diagnostic machines stand ready, while the medbay staff remains vigilant to tend to the health emergencies that arise from the perils of the cosmos."
+    connections:
+      - "cargo_hold"
+      - "airlock"
+
+  - guid: "airlock"
+    name: "Airlock"
+    description: "As the transition point between the safety of the ship's interior and the vacuum of space, the Airlock is a highly secure area featuring reinforced doors and safety protocols. It contains spacesuits for extravehicular activities and docking interfaces for visiting crafts or space stations."
+    connections:
+      - "medical_bay"
+
+  - guid: "thomas_room"
+    name: "Thomas' Quarters"
+    description: "Thomas' personal space reflects his organized nature, with shelves neatly lined with books and personal effects. A small desk holds a computer terminal where he often works on navigation data. His room is a reflection of his calm and collected demeanor."
+    connections:
+      - "crew_quarters_corridor"
+
+  - guid: "elara_room"
+    name: "Elara's Quarters"
+    description: "The Captain’s quarters, specifically designed for Elara, are moderately spacious, with room for a personal console, a sizeable bed, and keepsakes from her expeditions. The decor includes framed maps of her previous travels and a compact training area for staying fit."
+    connections:
+      - "crew_quarters_corridor"
+
+  - guid: "linh_room"
+    name: "Linh's Quarters"
+    description: "Reflecting her dual interest in botany and medicine, Linh’s quarters are filled with potted plants, providing fresh oxygen and a touch of green amidst the metal confines. Medical texts and research notes are stacked orderly on her desk, and the soft lighting is designed to be soothing for relaxation and study."
+    connections:
+      - "crew_quarters_corridor"
+
+  - guid: "vance_room"
+    name: "Vance's Quarters"
+    description: "Laden with various tools and gadgets, Vance’s room appears to be a tinkerer's paradise. An impressive collection of mechanical parts is categorized in bins against one wall, while diagrams and schematics are pinned up haphazardly around a workbench that's clearly the center of his personal domain."
+    connections:
+      - "crew_quarters_corridor"
+
+  - guid: "nyah_room"
+    name: "Nyah's Quarters"
+    description: "Nyah's quarters have a minimalist design, with a focus on functionality and order. The walls are adorned with strategic charts and combat practice schedules. The room includes a small arsenal of training weapons and workout equipment that she uses to maintain her combat readiness."
+    connections:
+      - "crew_quarters_corridor"

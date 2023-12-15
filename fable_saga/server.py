@@ -9,9 +9,9 @@ from aiohttp import web
 import socketio
 from cattrs import structure, unstructure
 
-from fable_agents.datastore import Datastore
-from fable_agents.api import API, Resolution
-from fable_agents import models, api, ai
+from fable_saga.datastore import Datastore
+from fable_saga.api import API, Resolution
+from fable_saga import models, api, ai
 import logging
 
 sio = socketio.AsyncServer()
