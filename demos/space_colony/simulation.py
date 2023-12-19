@@ -16,7 +16,8 @@ class SimAgent:
     location: Optional[sim_models.Location] = None
     skills: List[sim_models.Skill] = []
     saga_agent: Optional[fable_saga.Agent] = None
-    action: Optional[Dict[str, Any]] = None
+    action: Optional['sim_actions.SimAction'] = None
+    memories: List[sim_models.Memory] = []
 
     async def generate_actions(self, sim: 'Simulation', retries=0, verbose=False) -> [List[Dict[str, Any]]]:
         if self.saga_agent is None:
@@ -24,9 +25,11 @@ class SimAgent:
 
         print(f"Generating actions for {self.persona.id()} using model {self.saga_agent._llm.model_name}...")
         context = ""
-        context += "CREW: The crew of the LeCun is made up of the following people:\n" \
+        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
                    + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
         context += "LOCATIONS: The following locations are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
+        context += "MEMORIES: The following memories are available:\n" \
                    + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
 
         if self.persona is not None:
@@ -39,6 +42,11 @@ class SimAgent:
             context += f"Your location is {self.location.id()}.\n"
 
         return await self.saga_agent.actions(context, self.skills, retries=retries, verbose=verbose)
+
+    async def tick_action(self, delta: timedelta, sim: 'Simulation'):
+        if self.action is None:
+            return
+        self.action.tick(delta, sim)
 
     async def tick(self, delta: timedelta, sim: 'Simulation'):
 
@@ -61,14 +69,24 @@ class SimAgent:
             return int(item)
 
         def handle_action(action: Dict[str, Any]):
+            from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
             if action['skill'] == 'go_to':
-                self.location = sim.locations[EntityId(action['parameters']['destination'])]
+                self.action = GoTo(self, action)
             elif action['skill'] == 'interact':
-                self.location = sim.locations[EntityId(action['parameters']['item_guid'])]
+                self.action = Interact(self, action)
+            elif action['skill'] == 'converse_with':
+                self.action = ConverseWith(self, action)
+            elif action['skill'] == 'wait':
+                self.action = Wait(self, action)
+            elif action['skill'] == 'reflect':
+                self.action = Reflect(self, action)
             else:
                 print(f"Unknown action {action['skill']}.")
-
-        if self.action is None:
+        # Tick the current action.
+        if self.action is not None:
+            await self.tick_action(delta, sim)
+        # Choose a new action.
+        else:
             actions = await self.generate_actions(sim)
             print(f"\n========== {self.persona.id()} ===========")
             print("  ROLE: " + self.persona.role)
@@ -77,11 +95,12 @@ class SimAgent:
             list_actions(actions)
             while True:
                 idx = choose_action()
-                if 0 <= idx < len(actions):
+                if 0 <= idx < len(actions['options']):
                     handle_action(actions['options'][idx])
+                    print(f"Chose action {actions['options'][idx]['skill']}.")
                     break
                 else:
-                    print(f"Invalid action {idx}.")
+                    print(f"Invalid choice {idx}.")
 
 
 class Simulation:
@@ -150,6 +169,7 @@ async def main():
     # Now, we can use the sim_storage to generate actions for each agent.
     keep_running = True
     while keep_running:
+        print ("====  SHIP TIME: " + str(sim.shiptime) + "  ====")
         await sim.tick(timedelta(minutes=1))
 
         # Create workers to process actions.
@@ -166,9 +186,7 @@ async def main():
 
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
-        print("Done")
 
-        keep_running = False
     print("Exiting")
     exit(0)
 if __name__ == '__main__':

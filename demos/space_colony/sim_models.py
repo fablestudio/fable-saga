@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Dict
 
 from attr import define
@@ -37,6 +38,7 @@ class InteractableObject(models.EntityInterface):
     def id(self) -> models.EntityId:
         return self.guid
 
+
 @define(slots=True)
 class Skill(models.EntityInterface):
     guid: models.EntityId
@@ -45,3 +47,9 @@ class Skill(models.EntityInterface):
 
     def id(self) -> models.EntityId:
         return self.guid
+
+
+@define(slots=True)
+class Memory:
+    summary: str
+    timestamp: datetime.datetime
