@@ -13,7 +13,7 @@ from . import datastore
 from .models import EntityId
 
 # Package wide defaults.
-default_openai_model_name = "gpt-4-1106-preview"
+default_openai_model_name = "gpt-3.5-turbo-1106"
 default_openai_model_temperature = 0.9
 
 

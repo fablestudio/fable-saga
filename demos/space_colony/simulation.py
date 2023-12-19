@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Coroutine, Any
 from attrs import define
 import cattrs
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
 import fable_saga
 from fable_saga.models import EntityId
 import sim_models
@@ -16,10 +16,18 @@ class SimAgent:
     location: Optional[sim_models.Location] = None
     skills: List[sim_models.Skill] = []
     saga_agent: Optional[fable_saga.Agent] = None
+    action: Optional[Dict[str, Any]] = None
 
-    async def generate_actions(self, context, retries=0, verbose=False) -> [List[Dict[str, Any]]]:
+    async def generate_actions(self, sim: 'Simulation', retries=0, verbose=False) -> [List[Dict[str, Any]]]:
         if self.saga_agent is None:
             raise ValueError("Saga agent not initialized.")
+
+        print(f"Generating actions for {self.persona.id()} using model {self.saga_agent._llm.model_name}...")
+        context = ""
+        context += "CREW: The crew of the LeCun is made up of the following people:\n" \
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
+        context += "LOCATIONS: The following locations are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
 
         if self.persona is not None:
             context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
@@ -32,85 +40,137 @@ class SimAgent:
 
         return await self.saga_agent.actions(context, self.skills, retries=retries, verbose=verbose)
 
+    async def tick(self, delta: timedelta, sim: 'Simulation'):
 
-@define(slots=True)
-class SimStorage:
-    datetime: datetime = datetime.now()
-    agents: Dict[EntityId, SimAgent] = {}
-    locations: Dict[EntityId, sim_models.Location] = {}
-    interactable_objects: Dict[EntityId, sim_models.InteractableObject] = {}
+        def sort_actions(actions: Dict[str, Any]):
+            scores = actions['scores']
+            options = actions['options']
+            sorted_actions = sorted(zip(scores, options), key=lambda x: x[0], reverse=True)
+            actions['scores'] = [x[0] for x in sorted_actions]
+            actions['options'] = [x[1] for x in sorted_actions]
+
+        def list_actions(actions: Dict[str, Any]):
+            for i, action in enumerate(actions['options']):
+                output = f"#{i} -- {action['skill']} ({actions['scores'][i]})\n"
+                for key, value in action['parameters'].items():
+                    output += f"  {key}: {value}"
+                print(output)
+
+        def choose_action():
+            item = input(f"Choose an item for {self.persona.id()}...")
+            return int(item)
+
+        def handle_action(action: Dict[str, Any]):
+            if action['skill'] == 'go_to':
+                self.location = sim.locations[EntityId(action['parameters']['destination'])]
+            elif action['skill'] == 'interact':
+                self.location = sim.locations[EntityId(action['parameters']['item_guid'])]
+            else:
+                print(f"Unknown action {action['skill']}.")
+
+        if self.action is None:
+            actions = await self.generate_actions(sim)
+            print(f"\n========== {self.persona.id()} ===========")
+            print("  ROLE: " + self.persona.role)
+            print("  LOCATION: " + self.location.name)
+            sort_actions(actions)
+            list_actions(actions)
+            while True:
+                idx = choose_action()
+                if 0 <= idx < len(actions):
+                    handle_action(actions['options'][idx])
+                    break
+                else:
+                    print(f"Invalid action {idx}.")
 
 
-def load(storage: SimStorage):
-    with open('locations.yaml', 'r') as f:
-        for location_data in yaml.load(f, Loader=yaml.FullLoader):
-            location = cattrs.structure(location_data, sim_models.Location)
-            storage.locations[location.id()] = location
+class Simulation:
+    def __init__(self):
+        self.shiptime = datetime(2060, 1, 1, 8, 0, 0)
+        self.agents: Dict[EntityId, SimAgent] = {}
+        self.locations: Dict[EntityId, sim_models.Location] = {}
+        self.interactable_objects: Dict[EntityId, sim_models.InteractableObject] = {}
+        self.actionsQueue: asyncio.Queue = asyncio.Queue()
 
-    with open('personas.yaml', 'r') as f:
-        for persona_data in yaml.load(f, Loader=yaml.FullLoader):
-            persona = cattrs.structure(persona_data, sim_models.Persona)
-            agent = SimAgent(persona.id())
-            agent.persona = persona
-            # Create a saga agent for each persona.
-            agent.saga_agent = fable_saga.Agent(persona.id())
-            # Start everyone in the crew quarters corridor.
-            agent.location = storage.locations[EntityId('crew_quarters_corridor')]
-            storage.agents[persona.id()] = agent
+    def load(self):
+        with open('locations.yaml', 'r') as f:
+            for location_data in yaml.load(f, Loader=yaml.FullLoader):
+                location = cattrs.structure(location_data, sim_models.Location)
+                self.locations[location.id()] = location
 
-    with open('interactable_objects.yaml', 'r') as f:
-        for obj_data in yaml.load(f, Loader=yaml.FullLoader):
-            obj = cattrs.structure(obj_data, sim_models.InteractableObject)
-            storage.locations[obj.id()] = obj
+        with open('personas.yaml', 'r') as f:
+            for persona_data in yaml.load(f, Loader=yaml.FullLoader):
+                persona = cattrs.structure(persona_data, sim_models.Persona)
+                agent = SimAgent(persona.id())
+                agent.persona = persona
+                # Create a saga agent for each persona.
+                agent.saga_agent = fable_saga.Agent(persona.id())
+                # Start everyone in the crew quarters corridor.
+                agent.location = self.locations[EntityId('crew_quarters_corridor')]
+                self.agents[persona.id()] = agent
 
-    with open('skills.yaml', 'r') as f:
-        skills = []
-        for skill_data in yaml.load(f, Loader=yaml.FullLoader):
-            skills.append(cattrs.structure(skill_data, sim_models.Skill))
-        for agent in storage.agents.values():
-            agent.skills = skills
+        with open('interactable_objects.yaml', 'r') as f:
+            for obj_data in yaml.load(f, Loader=yaml.FullLoader):
+                obj = cattrs.structure(obj_data, sim_models.InteractableObject)
+                self.locations[obj.id()] = obj
+
+        with open('skills.yaml', 'r') as f:
+            skills = []
+            for skill_data in yaml.load(f, Loader=yaml.FullLoader):
+                skills.append(cattrs.structure(skill_data, sim_models.Skill))
+            for agent in self.agents.values():
+                agent.skills = skills
+
+    async def tick(self, delta: timedelta):
+        self.shiptime += delta
+        print(f"Tick: {self.shiptime}")
+        for agent in self.agents.values():
+            self.actionsQueue.put_nowait(agent.tick(delta, self))
+
+
+async def agent_worker(sim: Simulation):
+    while True:
+        agent_tick = await sim.actionsQueue.get()
+        await agent_tick
+        sim.actionsQueue.task_done()
+
+
+# async def ainput(string):
+#     from functools import partial
+#     from concurrent.futures.thread import ThreadPoolExecutor
+#     rie = partial(asyncio.get_event_loop().run_in_executor, ThreadPoolExecutor(1))
+#     while True:
+#         await rie(input)
 
 
 async def main():
-    sim_storage = SimStorage()
-    load(sim_storage)
+    sim = Simulation()
+    sim.load()
 
     # Now, we can use the sim_storage to generate actions for each agent.
     keep_running = True
     while keep_running:
+        await sim.tick(timedelta(minutes=1))
 
-        context = ""
-        context += "CREW: The crew of the LeCun is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim_storage.agents.values()])}\n"
-        context += "LOCATIONS: The following locations are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in sim_storage.locations.values()])}\n"
+        # Create workers to process actions.
+        tasks = []
+        for i in range(len(sim.agents)):
+            tasks.append(asyncio.create_task(agent_worker(sim)))
 
-        for agent in sim_storage.agents.values():
-            print(f"Generating actions for {agent.persona.id()} using model {agent.saga_agent._llm.model_name}...")
-            actions = await agent.generate_actions(context, verbose=True)
-            for i, action in enumerate(actions['options']):
-                print(f"#{i} --{actions['scores'][i]}--\n{json.dumps(action, indent=4)}\n------")
+        # Wait until the queue is fully processed.
+        await sim.actionsQueue.join()
 
-            item = input("Choose an item or press (q) to quit...")
-            if item == 'q':
-                keep_running = False
-                break
-            else:
-                item = int(item)
-                if item >= 0 and item < len(actions):
-                    action = actions[item]
-                    print(f"Executing action {action['action']}...")
-                    if action['action'] == 'go_to':
-                        agent.location = sim_storage.locations[EntityId(action['parameters']['destination'])]
-                    elif action['action'] == 'interact':
-                        agent.location = sim_storage.locations[EntityId(action['parameters']['item_guid'])]
-                    else:
-                        print(f"Unknown action {action['action']}.")
-                else:
-                    print(f"Invalid action {item}.")
+        # Cancel our worker tasks.
+        for task in tasks:
+            task.cancel()
+
+        # Wait until all worker tasks are cancelled.
+        await asyncio.gather(*tasks, return_exceptions=True)
+        print("Done")
 
         keep_running = False
-
+    print("Exiting")
+    exit(0)
 if __name__ == '__main__':
     asyncio.run(main())
 
