@@ -1,13 +1,12 @@
 import datetime
 from typing import List, Dict
-
 from attr import define
-from fable_saga import models
+from fable_saga import EntityId, EntityInterface
 
 
 @define(slots=True)
-class Persona(models.EntityInterface):
-    guid: models.EntityId
+class Persona(EntityInterface):
+    guid: EntityId
     first_name: str
     last_name: str
     background: str
@@ -15,37 +14,37 @@ class Persona(models.EntityInterface):
     personality: str
     role: str
 
-    def id(self) -> models.EntityId:
+    def id(self) -> EntityId:
         return self.guid
 
 
 @define(slots=True)
-class Location(models.EntityInterface):
-    guid: models.EntityId
+class Location(EntityInterface):
+    guid: EntityId
     name: str
     description: str
 
-    def id(self) -> models.EntityId:
+    def id(self) -> EntityId:
         return self.guid
 
 
 @define(slots=True)
-class InteractableObject(models.EntityInterface):
-    guid: models.EntityId
-    location: models.EntityId
+class InteractableObject(EntityInterface):
+    guid: EntityId
+    location: EntityId
     affordances: List[str]
 
-    def id(self) -> models.EntityId:
+    def id(self) -> EntityId:
         return self.guid
 
 
 @define(slots=True)
-class Skill(models.EntityInterface):
-    guid: models.EntityId
+class Skill(EntityInterface):
+    guid: EntityId
     description: str
     parameters: Dict[str, str]
 
-    def id(self) -> models.EntityId:
+    def id(self) -> EntityId:
         return self.guid
 
 

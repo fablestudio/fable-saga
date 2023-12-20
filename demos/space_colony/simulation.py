@@ -5,11 +5,12 @@ import cattrs
 import yaml
 from datetime import datetime, timedelta
 import fable_saga
-from fable_saga.models import EntityId
+from fable_saga import EntityId
 import sim_models
 
 
 class SimAgent:
+    """A SimAgent is a persona in the simulation. It has a persona, a location, and a set of skills."""
 
     def __init__(self, guid: EntityId):
         self.guid = guid
@@ -21,6 +22,7 @@ class SimAgent:
         self.memories: List[sim_models.Memory] = []
 
     async def generate_actions(self, sim: 'Simulation', retries=0, verbose=False) -> [List[Dict[str, Any]]]:
+        """Generate actions for this agent using the SAGA agent."""
         if self.saga_agent is None:
             raise ValueError("Saga agent not initialized.")
 
@@ -31,7 +33,9 @@ class SimAgent:
         context += "LOCATIONS: The following locations are available:\n" \
                    + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
         context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.shiptime) for memory in self.memories])}\n"
+                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in self.memories])}\n"
+        context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
 
         if self.persona is not None:
             context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
@@ -45,13 +49,16 @@ class SimAgent:
         return await self.saga_agent.actions(context, self.skills, retries=retries, verbose=verbose)
 
     async def tick_action(self, delta: timedelta, sim: 'Simulation'):
+        """Tick the current action to advance and/or complete it."""
         if self.action is None:
             return
         self.action.tick(delta, sim)
 
     async def tick(self, delta: timedelta, sim: 'Simulation'):
+        """Tick the agent to advance its current action or choose a new one."""
 
         def sort_actions(actions: Dict[str, Any]):
+            """Sort the actions by score."""
             scores = actions['scores']
             options = actions['options']
             sorted_actions = sorted(zip(scores, options), key=lambda x: x[0], reverse=True)
@@ -59,6 +66,7 @@ class SimAgent:
             actions['options'] = [x[1] for x in sorted_actions]
 
         def list_actions(actions: Dict[str, Any]):
+            """List the actions byt printing to the console."""
             for i, action in enumerate(actions['options']):
                 output = f"#{i} -- {action['skill']} ({actions['scores'][i]})\n"
                 for key, value in action['parameters'].items():
@@ -66,10 +74,12 @@ class SimAgent:
                 print(output)
 
         def choose_action():
+            """Choose an action from the list by choosing a number."""
             item = input(f"Choose an item for {self.persona.id()}...")
             return int(item)
 
         def handle_action(action: Dict[str, Any]):
+            """Handle the chosen action."""
             from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
             if action['skill'] == 'go_to':
                 self.action = GoTo(self, action)
@@ -83,7 +93,7 @@ class SimAgent:
                 self.action = Reflect(self, action)
             else:
                 print(f"Unknown action {action['skill']}.")
-        # Tick the current action.
+        # Tick the current action if there is one.
         if self.action is not None:
             await self.tick_action(delta, sim)
         # Choose a new action.
@@ -104,19 +114,25 @@ class SimAgent:
 
 class Simulation:
     def __init__(self):
-        self.shiptime = datetime(2060, 1, 1, 8, 0, 0)
+        # The current time on the ship.
+        self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
+        # The crew on the ship.
         self.agents: Dict[EntityId, SimAgent] = {}
+        # The locations on the ship.
         self.locations: Dict[EntityId, sim_models.Location] = {}
+        # The interactable objects on the ship.
         self.interactable_objects: Dict[EntityId, sim_models.InteractableObject] = {}
+        # A queue of action requests to process from SAGA.
         self.actionsQueue: asyncio.Queue = asyncio.Queue()
 
     def load(self):
-        with open('locations.yaml', 'r') as f:
+        """Load the simulation data from the YAML files."""
+        with open('resources/locations.yaml', 'r') as f:
             for location_data in yaml.load(f, Loader=yaml.FullLoader):
                 location = cattrs.structure(location_data, sim_models.Location)
                 self.locations[location.id()] = location
 
-        with open('personas.yaml', 'r') as f:
+        with open('resources/personas.yaml', 'r') as f:
             for persona_data in yaml.load(f, Loader=yaml.FullLoader):
                 persona = cattrs.structure(persona_data, sim_models.Persona)
                 agent = SimAgent(persona.id())
@@ -127,12 +143,12 @@ class Simulation:
                 agent.location = self.locations[EntityId('crew_quarters_corridor')]
                 self.agents[persona.id()] = agent
 
-        with open('interactable_objects.yaml', 'r') as f:
+        with open('resources/interactable_objects.yaml', 'r') as f:
             for obj_data in yaml.load(f, Loader=yaml.FullLoader):
                 obj = cattrs.structure(obj_data, sim_models.InteractableObject)
                 self.locations[obj.id()] = obj
 
-        with open('skills.yaml', 'r') as f:
+        with open('resources/skills.yaml', 'r') as f:
             skills = []
             for skill_data in yaml.load(f, Loader=yaml.FullLoader):
                 skills.append(cattrs.structure(skill_data, sim_models.Skill))
@@ -140,14 +156,17 @@ class Simulation:
                 agent.skills = skills
 
     async def tick(self, delta: timedelta):
-        self.shiptime += delta
+        """Tick the simulation to advance the current time and actions."""
+        self.sim_time += delta
         for agent in self.agents.values():
             self.actionsQueue.put_nowait(agent.tick(delta, self))
 
 
 class Format:
+    """A set of methods to format simulation data for printing to the console and to the SAGA context."""
     @staticmethod
     def simple_time_ago(dt: datetime, current_datetime: datetime) -> str:
+        """Format a datetime as a simple time ago string."""
         # Format as the number of days or minutes ago. Only use days if it was at least a day ago.
         days_ago = (current_datetime - dt).days
         minutes_ago = int((current_datetime - dt).total_seconds() / 60)
@@ -158,13 +177,16 @@ class Format:
 
     @staticmethod
     def memory(memory: sim_models.Memory, current_datetime: datetime) -> str:
+        """Format a memory with a simple time ago string."""
         return f"{Format.simple_time_ago(memory.timestamp, current_datetime)}: {memory.summary}"
 
     @staticmethod
     def action(action: 'sim_actions.SimAction', current_datetime: datetime) -> str:
+        """Format an action with a simple time ago string."""
         if action is None:
             return "Idle"
         if action.start_time is None:
+            # The action hasn't started yet.
             timestamp = "Starting"
         else:
             timestamp = Format.simple_time_ago(action.start_time, current_datetime)
@@ -172,34 +194,27 @@ class Format:
 
 
 async def agent_worker(sim: Simulation):
+    """A worker that processes actions for each agent."""
     while True:
         agent_tick = await sim.actionsQueue.get()
         await agent_tick
         sim.actionsQueue.task_done()
 
 
-# async def ainput(string):
-#     from functools import partial
-#     from concurrent.futures.thread import ThreadPoolExecutor
-#     rie = partial(asyncio.get_event_loop().run_in_executor, ThreadPoolExecutor(1))
-#     while True:
-#         await rie(input)
-
-
 async def main():
+    """The main entry point for the simulation."""
     sim = Simulation()
     sim.load()
 
-    # Now, we can use the sim_storage to generate actions for each agent.
     keep_running = True
     while keep_running:
-        print ("====  SHIP TIME: " + str(sim.shiptime) + "  ====")
+        print ("====  SHIP TIME: " + str(sim.sim_time) + "  ====")
         for agent in sim.agents.values():
             print(f"---- {agent.persona.id()} ----")
             print(f"  ROLE: {agent.persona.role}")
             print(f"  LOCATION: {agent.location.name}")
-            print(f"  ACTION: {Format.action(agent.action, sim.shiptime)}")
-            print("  MEMORIES:" + "".join(["\n  * " + Format.memory(m, sim.shiptime) for m in agent.memories]) + "\n")
+            print(f"  ACTION: {Format.action(agent.action, sim.sim_time)}")
+            print("  MEMORIES:" + "".join(["\n  * " + Format.memory(m, sim.sim_time) for m in agent.memories]) + "\n")
 
         await sim.tick(timedelta(minutes=1))
 
@@ -211,15 +226,9 @@ async def main():
         # Wait until the queue is fully processed.
         await sim.actionsQueue.join()
 
-        # # Cancel our worker tasks.
-        # for task in tasks:
-        #     task.cancel()
-        #
-        # # Wait until all worker tasks are cancelled.
-        # await asyncio.gather(*tasks, return_exceptions=True)
-
     print("Exiting")
     exit(0)
+
 if __name__ == '__main__':
     asyncio.run(main())
 

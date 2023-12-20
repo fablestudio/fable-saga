@@ -1,4 +1,5 @@
 import json
+from abc import ABC, abstractmethod
 from typing import *
 from attr import define
 import pathlib
@@ -8,17 +9,21 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chat_models.base import BaseChatModel
 from langchain.prompts import load_prompt
 
-from . import models
-from . import datastore
-from .models import EntityId
-
 # Package wide defaults.
 default_openai_model_name = "gpt-3.5-turbo-1106"
 default_openai_model_temperature = 0.9
 
+EntityId = str
 
-class Agent(models.EntityInterface):
 
+class EntityInterface(ABC):
+    @abstractmethod
+    def id(self) -> EntityId:
+        pass
+
+
+class Agent:
+    """SAGA Agent """
     def id(self) -> EntityId:
         return self._id
 
@@ -28,16 +33,7 @@ class Agent(models.EntityInterface):
             ChatOpenAI(temperature=default_openai_model_temperature, model_name=default_openai_model_name,
                        model_kwargs={
                            "response_format": {"type": "json_object"}})
-
-    def chain(self) -> LLMChain:
-        path = pathlib.Path(__file__).parent.resolve()
-        prompt = load_prompt(path / "prompt_templates/generate_actions.yaml")
-        return LLMChain(llm=self._llm, prompt=prompt)
-
-    async def actions(self, context, skills, retries=0, verbose=False) -> List[Dict[str, Any]]:
-        chain = self.chain()
-        chain.verbose = verbose
-        guidance = """
+        self.guidance = """
 * Provide a goal for your character to achieve as well as the action.
 * Do not make up new characters.
 * Staying true to your character's personality and circumstances.
@@ -46,9 +42,19 @@ class Agent(models.EntityInterface):
 * Do not do the same thing again if you have already done it.
 * Advance the story by generating actions that will help you achieve your most important and immediate goals.
 """
+        path = pathlib.Path(__file__).parent.resolve()
+        self.prompt = load_prompt(path / "prompt_templates/generate_actions.yaml")
+
+    def chain(self) -> LLMChain:
+        return LLMChain(llm=self._llm, prompt=self.prompt)
+
+    async def actions(self, context, skills, retries=0, verbose=False) -> List[Dict[str, Any]]:
+        chain = self.chain()
+        chain.verbose = verbose
+
         options = []
         while retries >= 0 and len(options) == 0:
-            resp = await chain.arun(guidance=guidance, context=context, skills=skills)
+            resp = await chain.arun(guidance=self.guidance, context=context, skills=skills)
 
             try:
                 options = json.loads(resp)
@@ -61,19 +67,3 @@ class Agent(models.EntityInterface):
             else:
                 break
         return options
-
-
-@define(slots=True)
-class Datastore:
-    conversations: datastore.ConversationMemory = datastore.ConversationMemory()
-    observation_memory: datastore.ObservationMemory = datastore.ObservationMemory()
-    personas: datastore.Personas = datastore.Personas()
-    meta_affordances: datastore.MetaAffordances = datastore.MetaAffordances()
-    status_updates: datastore.StatusUpdates = datastore.StatusUpdates()
-    sequence_updates: datastore.SequenceUpdates = datastore.SequenceUpdates()
-    # memory_vectors: datastore.MemoryVectors = datastore.MemoryVectors()
-    locations: datastore.Locations = datastore.Locations()
-    last_player_options: Dict[str, Optional[List[Dict[str, Any]]]] = {}
-    recent_goals_chosen: Dict[str, List[str]] = {}
-    memories: datastore.Memories = datastore.Memories()
-    extra: str = ""

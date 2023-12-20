@@ -7,6 +7,7 @@ from fable_saga import EntityId
 
 
 class SimAction:
+    """Base class for all actions."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         self.agent = agent
         self.action_data: Dict[str, Any] = action_data
@@ -17,15 +18,18 @@ class SimAction:
         self.end_time = None
 
     def tick(self, delta: timedelta, sim: Simulation):
+        """Update the action's run time as a baseline."""
         if self.start_time is None:
-            self.start_time = sim.shiptime
+            self.start_time = sim.sim_time
         else:
             self.run_time += delta
 
     def complete(self):
+        """Mark the action as complete by resetting the agent's action to None."""
         self.agent.action = None
 
     def summary(self):
+        """Return a summary of the action."""
         output = self.skill
         for key, value in self.parameters.items():
             output += f", {key}:{value}"
@@ -33,6 +37,7 @@ class SimAction:
 
 
 class GoTo(SimAction):
+    """Move to a new location."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         super().__init__(agent, action_data)
         self.destination: EntityId = self.parameters.get('destination', "")
@@ -46,13 +51,14 @@ class GoTo(SimAction):
         previous_location = self.agent.location.guid
         self.agent.location = sim.locations[EntityId(self.destination)]
         self.agent.memories.append(sim_models.Memory(summary=f"Moved from {previous_location} to {self.destination} with goal {self.goal}",
-                                                    timestamp=sim.shiptime))
-        self.end_time = sim.shiptime
+                                                     timestamp=sim.sim_time))
+        self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} moved to {self.destination}.")
         self.complete()
 
 
 class Interact(SimAction):
+    """Interact with an object using a specific interaction."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         super().__init__(agent, action_data)
         self.item_guid: EntityId = self.parameters.get('item_guid', None)
@@ -65,13 +71,14 @@ class Interact(SimAction):
         if self.run_time.total_seconds() < 60:
             return
         self.agent.memories.append(sim_models.Memory(summary=f"Interacted with {self.item_guid} via {self.interaction} at {self.agent.location.guid} with goal {self.goal}",
-                                                    timestamp=sim.shiptime))
-        self.end_time = sim.shiptime
+                                                     timestamp=sim.sim_time))
+        self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} interacted with {self.item_guid}.")
         self.complete()
 
 
 class Wait(SimAction):
+    """Wait for a period of time."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         super().__init__(agent, action_data)
         self.duration: int = int(self.parameters.get('duration', 0))
@@ -85,13 +92,14 @@ class Wait(SimAction):
         if self.remaining_time.total_seconds() > 60:
             return
         self.agent.memories.append(sim_models.Memory(summary=f"Waited for {self.duration}m at {self.agent.location.guid} with goal {self.goal}",
-                                                    timestamp=sim.shiptime))
-        self.end_time = sim.shiptime
+                                                     timestamp=sim.sim_time))
+        self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} waited for {self.duration}.")
         self.complete()
 
 
 class Reflect(SimAction):
+    """Reflect on something and synthesize a new idea."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         super().__init__(agent, action_data)
         self.focus: str = self.parameters.get('focus', "")
@@ -105,13 +113,14 @@ class Reflect(SimAction):
             return
         self.agent.memories.append(sim_models.Memory(summary=f"Reflected on {self.focus} and synthesized {self.result} "
                                                              f"at {self.agent.location.guid} with goal {self.goal}",
-                                                    timestamp=sim.shiptime))
-        self.end_time = sim.shiptime
+                                                     timestamp=sim.sim_time))
+        self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} reflected on {self.focus} and synthesized {self.result}.")
         self.complete()
 
 
 class ConverseWith(SimAction):
+    """Converse with another persona."""
     def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
         super().__init__(agent, action_data)
 
@@ -127,10 +136,10 @@ class ConverseWith(SimAction):
             return
         self.agent.memories.append(sim_models.Memory(summary=f"Conversed with {self.persona_guid} on {self.topic} "
                                                              f"at {self.agent.location.guid} with goal {self.goal}",
-                                                    timestamp=sim.shiptime))
+                                                     timestamp=sim.sim_time))
         sim.agents[self.persona_guid].memories.append(sim_models.Memory(summary=f"Conversed with {self.agent.persona.id()} on {self.topic} "
                                                              f"at {self.agent.location.guid}",
-                                                     timestamp=sim.shiptime))
-        self.end_time = sim.shiptime
+                                                                        timestamp=sim.sim_time))
+        self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} conversed with {self.persona_guid} on {self.topic}.")
         self.complete()
