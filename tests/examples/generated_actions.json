@@ -1,0 +1,18 @@
+[
+  {
+    "options": [
+      {
+        "skill": "skill_1",
+        "parameters": {}
+      },
+      {
+        "skill": "skill_2",
+        "parameters": {}
+      }
+    ],
+    "scores": [
+      0.9,
+      0.1
+    ]
+  }
+]

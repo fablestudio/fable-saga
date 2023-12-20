@@ -1,7 +1,6 @@
 import json
 from abc import ABC, abstractmethod
 from typing import *
-from attr import define
 import pathlib
 
 from langchain import LLMChain
@@ -48,13 +47,13 @@ class Agent:
     def chain(self) -> LLMChain:
         return LLMChain(llm=self._llm, prompt=self.prompt)
 
-    async def actions(self, context, skills, retries=0, verbose=False) -> List[Dict[str, Any]]:
+    async def actions(self, context:str, skills: Dict[str, Any], retries=0, verbose=False) -> List[Dict[str, Any]]:
         chain = self.chain()
         chain.verbose = verbose
 
         options = []
         while retries >= 0 and len(options) == 0:
-            resp = await chain.arun(guidance=self.guidance, context=context, skills=skills)
+            resp = await chain.arun(guidance=self.guidance, context=context, skills=json.dumps(skills))
 
             try:
                 options = json.loads(resp)
