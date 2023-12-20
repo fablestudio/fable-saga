@@ -136,7 +136,7 @@ In order to avoid having to pass the OPENAI_API_KEY to the demo every time, you 
 
 Install PyCharm (optional)
 --------
-Just a recommendation for our internal team who want to get this setup. You can use any IDE you want.
+Just a recommendation for our internal team who want to get this setup. Community folks can use any IDE you want.
 * Download and install the latest [PyCharm Community Edition](https://www.jetbrains.com/pycharm/download/other.html)
 * Open fable-generative-agents in PyCharm
 * Configure interpreter: 
