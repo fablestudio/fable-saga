@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "AI agents that turn skills into actions."
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
-packages = [{include = "fable_agents"}]
+packages = [{include = "fable_saga"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
