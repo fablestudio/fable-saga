@@ -1,20 +1,25 @@
 [tool.poetry]
-name = "fable-generative-agents"
-version = "0.1.0"
-description = ""
+name = "fable-saga"
+version = "0.2.0"
+description = "AI agents that turn skills into actions."
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
 packages = [{include = "fable_agents"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
-aiohttp = "^3.8.5"
 langchain = {extras = ["llms"], version = "^0.0.293"}
-python-dateutil = "^2.8.2"
-faiss-cpu = "^1.7.4"
-tiktoken = "^0.5.1"
+
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+# The only dependencies that should be added are
+# dependencies used for running tests (e.g., pytest, freezegun, response).
+pytest = "^7.3.0"
+pytest-asyncio = "^0.21.1"
 
 
 [build-system]

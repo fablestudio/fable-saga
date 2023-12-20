@@ -1,0 +1,39 @@
+- first_name: Elara
+  last_name: Sundeep
+  guid: elara_sundeep
+  background: Born on Mars in a family of military strategists, Elara quickly realized that she needed a taste of adventure that the disciplined military life could not provide. She started a career as a merchant pilot, and her sharp wit and negotiation skills landed her as the captain of the cargo ship "Stellar Runner."
+  appearance: Elara is in her mid-40s with tanned skin and often sports a close-cropped haircut that mirrors her pragmatic nature. Piercing gray eyes reflect a life of navigating not just the void of space but also the intricacies of trade and diplomacy.
+  personality: She is known for her cool demeanor and quick thinking during a crisis. Diplomatic yet assertive, Elara is respected by her crew and feared by her competitors.
+  role: As the Captain, Elara is responsible for making the strategic decisions for the ship's routes and trade agreements. She also serves as the public face of their independent shipping operations and ensures the safety and morale of her crew.
+
+- first_name: Vance
+  last_name: Tormun
+  guid: vance_tormun
+  background: A former mine worker from the asteroid belt, Vance is savvy with machinery and has an uncanny ability to fix almost anything with the limited resources available in space. After a mining accident that led to a labor dispute, he decided to leave the mining sector and join the crew of the "Stellar Runner."
+  appearance: Vance is a burly figure with a friendly face, his skin covered in the fine dusting of scars from a lifetime of manual labor. He keeps his hair long as a personal rebellion against his past in the regimented mining operation.
+  personality: Vance is jovial, always ready with a story or joke, but fiercely protective of the ship's equipment. His colleagues often find him talking to the machines as if they were old friends.
+  role: Vance is the chief engineer and is responsible for the maintenance and repair of the ship, ensuring that it can endure the long treks between colonies. His ingenuity has saved the "Stellar Runner" from more than a few scrapes.
+
+- first_name: Nyah
+  last_name: Kobari
+  guid: nyah_kobari
+  background: With a mixed Earth and Belter heritage, Nyah left behind a troubled youth of petty crime to enlist in a private security firm. She is trained in combat and diplomacy, a blend of skills perfect for the day-to-day uncertainty of space travel.
+  appearance: Nyah is tall and athletic, with stark black hair often pulled back into a tight braid that reveals the tattoos marking her neck – a testament to her multifaceted background. She moves with a fluid grace, always alert.
+  personality: Stern and sometimes aloof, Nyah is fiercely loyal to those she considers family, which now means her shipmates. She's soft-spoken but authoritative, and her tone carries a weight that demands respect.
+  role: As the head of security, Nyah ensures the safety of the cargo and crew from pirates, smugglers, and other potential threats. She also serves as a tactical advisor to Captain Sundeep and leads boarding and inspection procedures.
+
+- first_name: Jax
+  last_name: Emerson
+  guid: jax_emerson
+  background: Hailing from a colony on one of Jupiter’s moons, Jax was born into a culture of ship racers. After his cocky attitude led to a series of lost races and debts, he sought a fresh start with a more reputable career on the "Stellar Runner."
+  appearance: Lean with the reflexes of a pilot accustomed to high-stakes maneuvers, Jax maintains an air of nonchalance with a permanent smirk and unkempt blond hair.
+  personality: A maverick at heart, Jax often pushes the limits of the ship's capabilities. He's got a competitive streak and often likens every navigation challenge to a race he intends to win.
+  role: The ship's main pilot, Jax handles the controls with an expert touch and is responsible for navigating through debris fields, asteroid belts, and the occasional high-speed getaway.
+
+- first_name: Linh
+  last_name: Le
+  guid: linh_le
+  background: Linh left Earth as part of a research team exploring sustainable life support systems for deep-space travel. Her interest in botany, paired with an innate desire to care for others, led her to become the medic for the "Stellar Runner."
+  appearance: Of medium build and with a constant thoughtful expression, Linh has soft features and keeps her dark hair tied back in a practical bun. Often seen in her lab, surrounded by the greenery of her botanical experiments.
+  personality: Linh is compassionate and methodical, viewing the crew's health and psychological well-being as her top priority. She is innately curious and finds joy in the simple act of nurturing life - both plant and human - on the ship.
+  role: As the medical officer, Linh is responsible for the physical and mental health of the crew, managing everything from routine check-ups to emergency medical procedures. Additionally, she oversees the hydroponic gardens that supplement the ship’s food supply and contribute to oxygen regeneration.
