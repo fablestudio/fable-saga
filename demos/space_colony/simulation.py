@@ -1,5 +1,6 @@
 import asyncio
 import json
+import pathlib
 from typing import List, Dict, Optional, Coroutine, Any
 import cattrs
 import yaml
@@ -46,7 +47,7 @@ class SimAgent:
         if self.location is not None:
             context += f"Your location is {self.location.id()}.\n"
 
-        return await self.saga_agent.actions(context, self.skills, retries=retries, verbose=verbose)
+        return await self.saga_agent.actions(context, [cattrs.unstructure(s) for s in self.skills], retries=retries, verbose=verbose)
 
     async def tick_action(self, delta: timedelta, sim: 'Simulation'):
         """Tick the current action to advance and/or complete it."""
@@ -127,12 +128,13 @@ class Simulation:
 
     def load(self):
         """Load the simulation data from the YAML files."""
-        with open('resources/locations.yaml', 'r') as f:
+        path = pathlib.Path(__file__).parent.resolve()
+        with open(path / 'resources/locations.yaml', 'r') as f:
             for location_data in yaml.load(f, Loader=yaml.FullLoader):
                 location = cattrs.structure(location_data, sim_models.Location)
                 self.locations[location.id()] = location
 
-        with open('resources/personas.yaml', 'r') as f:
+        with open(path / 'resources/personas.yaml', 'r') as f:
             for persona_data in yaml.load(f, Loader=yaml.FullLoader):
                 persona = cattrs.structure(persona_data, sim_models.Persona)
                 agent = SimAgent(persona.id())
@@ -143,12 +145,12 @@ class Simulation:
                 agent.location = self.locations[EntityId('crew_quarters_corridor')]
                 self.agents[persona.id()] = agent
 
-        with open('resources/interactable_objects.yaml', 'r') as f:
+        with open(path / 'resources/interactable_objects.yaml', 'r') as f:
             for obj_data in yaml.load(f, Loader=yaml.FullLoader):
                 obj = cattrs.structure(obj_data, sim_models.InteractableObject)
                 self.locations[obj.id()] = obj
 
-        with open('resources/skills.yaml', 'r') as f:
+        with open(path / 'resources/skills.yaml', 'r') as f:
             skills = []
             for skill_data in yaml.load(f, Loader=yaml.FullLoader):
                 skills.append(cattrs.structure(skill_data, sim_models.Skill))

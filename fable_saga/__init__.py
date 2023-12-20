@@ -47,7 +47,7 @@ class Agent:
     def chain(self) -> LLMChain:
         return LLMChain(llm=self._llm, prompt=self.prompt)
 
-    async def actions(self, context:str, skills: Dict[str, Any], retries=0, verbose=False) -> List[Dict[str, Any]]:
+    async def actions(self, context:str, skills: List[Dict[str, Any]], retries=0, verbose=False) -> List[Dict[str, Any]]:
         chain = self.chain()
         chain.verbose = verbose
 
