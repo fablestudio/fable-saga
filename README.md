@@ -6,7 +6,8 @@ Demo Quickstart
 2. Clone this repo and change the directory to it.
 3. run `poetry install` to install dependencies.
 4. start a poetry shell with `poetry shell` to make sure you are using the correct python version and have the correct environment variables set.
-5. run `OPENAI_API_KEY=<YOUR KEY> python demos/space_colony/simulation.py`
+5. run `set OPENAI_API_KEY=<YOUR KEY>`
+6. run `python demos/space_colony/simulation.py`
 
 B.Y.O.S. (Bring Your Own Simulation)
 --------
