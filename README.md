@@ -10,9 +10,9 @@ Demo Quickstart
 
 B.Y.O.S. (Bring Your Own Simulation)
 --------
-SAGA is a library that can be used to generate actions for any simulation. Our blog post shows
-SAGA being used in our "Thistle Gulch" simulation, which is full on 3D interactive simulation, but to
-get started, you can use the Space Colony demo as a starting point. External simulations (like Thistle Gulch)
+SAGA is a library that can be used to generate actions for any simulation. [Our blog post shows
+SAGA being used in our "Thistle Gulch" simulation](https://blog.fabledev.com/), which is full on 3D interactive simulation, but to
+get started, you can use the included Space Colony demo as a starting point. External simulations (like Thistle Gulch)
 can connect to SAGA via socketio. We removed that code from the demo to make it easier to get started, but
 we will be adding it back in soon.
 
