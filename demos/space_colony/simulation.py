@@ -1,7 +1,6 @@
 import asyncio
 import json
 from typing import List, Dict, Optional, Coroutine, Any
-from attrs import define
 import cattrs
 import yaml
 from datetime import datetime, timedelta
@@ -10,14 +9,16 @@ from fable_saga.models import EntityId
 import sim_models
 
 
-@define(slots=True)
 class SimAgent:
-    persona: sim_models.Persona
-    location: Optional[sim_models.Location] = None
-    skills: List[sim_models.Skill] = []
-    saga_agent: Optional[fable_saga.Agent] = None
-    action: Optional['sim_actions.SimAction'] = None
-    memories: List[sim_models.Memory] = []
+
+    def __init__(self, guid: EntityId):
+        self.guid = guid
+        self.persona: Optional[sim_models.Persona] = None
+        self.location: Optional[sim_models.Location] = None
+        self.skills: List[sim_models.Skill] = []
+        self.saga_agent: Optional[fable_saga.Agent] = None
+        self.action: Optional['sim_actions.SimAction'] = None
+        self.memories: List[sim_models.Memory] = []
 
     async def generate_actions(self, sim: 'Simulation', retries=0, verbose=False) -> [List[Dict[str, Any]]]:
         if self.saga_agent is None:
@@ -30,7 +31,7 @@ class SimAgent:
         context += "LOCATIONS: The following locations are available:\n" \
                    + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
         context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
+                   + f"{json.dumps([Format.memory(memory, sim.shiptime) for memory in self.memories])}\n"
 
         if self.persona is not None:
             context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
@@ -87,10 +88,8 @@ class SimAgent:
             await self.tick_action(delta, sim)
         # Choose a new action.
         else:
-            actions = await self.generate_actions(sim)
+            actions = await self.generate_actions(sim, verbose=False)
             print(f"\n========== {self.persona.id()} ===========")
-            print("  ROLE: " + self.persona.role)
-            print("  LOCATION: " + self.location.name)
             sort_actions(actions)
             list_actions(actions)
             while True:
@@ -142,9 +141,34 @@ class Simulation:
 
     async def tick(self, delta: timedelta):
         self.shiptime += delta
-        print(f"Tick: {self.shiptime}")
         for agent in self.agents.values():
             self.actionsQueue.put_nowait(agent.tick(delta, self))
+
+
+class Format:
+    @staticmethod
+    def simple_time_ago(dt: datetime, current_datetime: datetime) -> str:
+        # Format as the number of days or minutes ago. Only use days if it was at least a day ago.
+        days_ago = (current_datetime - dt).days
+        minutes_ago = int((current_datetime - dt).total_seconds() / 60)
+        if days_ago > 0:
+            return str(days_ago) + ' days ago'
+        else:
+            return str(minutes_ago) + 'm ago'
+
+    @staticmethod
+    def memory(memory: sim_models.Memory, current_datetime: datetime) -> str:
+        return f"{Format.simple_time_ago(memory.timestamp, current_datetime)}: {memory.summary}"
+
+    @staticmethod
+    def action(action: 'sim_actions.SimAction', current_datetime: datetime) -> str:
+        if action is None:
+            return "Idle"
+        if action.start_time is None:
+            timestamp = "Starting"
+        else:
+            timestamp = Format.simple_time_ago(action.start_time, current_datetime)
+        return f"{timestamp}: {action.summary()}"
 
 
 async def agent_worker(sim: Simulation):
@@ -170,6 +194,13 @@ async def main():
     keep_running = True
     while keep_running:
         print ("====  SHIP TIME: " + str(sim.shiptime) + "  ====")
+        for agent in sim.agents.values():
+            print(f"---- {agent.persona.id()} ----")
+            print(f"  ROLE: {agent.persona.role}")
+            print(f"  LOCATION: {agent.location.name}")
+            print(f"  ACTION: {Format.action(agent.action, sim.shiptime)}")
+            print("  MEMORIES:" + "".join(["\n  * " + Format.memory(m, sim.shiptime) for m in agent.memories]) + "\n")
+
         await sim.tick(timedelta(minutes=1))
 
         # Create workers to process actions.
@@ -180,12 +211,12 @@ async def main():
         # Wait until the queue is fully processed.
         await sim.actionsQueue.join()
 
-        # Cancel our worker tasks.
-        for task in tasks:
-            task.cancel()
-
-        # Wait until all worker tasks are cancelled.
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # # Cancel our worker tasks.
+        # for task in tasks:
+        #     task.cancel()
+        #
+        # # Wait until all worker tasks are cancelled.
+        # await asyncio.gather(*tasks, return_exceptions=True)
 
     print("Exiting")
     exit(0)
