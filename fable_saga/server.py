@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--type', type=str, required=True, help="Type of server to run.", choices=["socketio", "http"])
     parser.add_argument('--host', type=str, default='localhost', help='Host to listen on')
     parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
-    parser.add_argument('--cors', type=str, default='*', help='CORS origin')
+    parser.add_argument('--cors', type=str, default=None, help='CORS origin')
     args = parser.parse_args()
 
     # Create common server objects
@@ -95,6 +95,8 @@ if __name__ == '__main__':
 
     # Create socketio server
     if args.type == 'socketio':
+        if args.cors is None:
+            args.cors = '*'
         sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins=args.cors)
         sio.attach(app)
 

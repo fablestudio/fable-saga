@@ -13,9 +13,97 @@ B.Y.O.S. (Bring Your Own Simulation)
 --------
 SAGA is a library that can be used to generate actions for any simulation. [Our blog post shows
 SAGA being used in our "Thistle Gulch" simulation](https://blog.fabledev.com/), which is full on 3D interactive simulation, but to
-get started, you can use the included Space Colony demo as a starting point. External simulations (like Thistle Gulch)
-can connect to SAGA via socketio. We removed that code from the demo to make it easier to get started, but
-we will be adding it back in soon.
+get started, you can use the included Space Colony demo as a starting point.
+
+The Space Colony demo is a simple text-based simulation of a spaceship with a crew of 5 agents. It's included in this 
+repo to make it easier to test it out and have an example to work from. See the section below for more details on
+running it, as well as how it uses SAGA to generate actions.
+
+Using as a Server (HTTP or SocketIO)
+==================
+SAGA can be used as a server that can be connected to via HTTP or SocketIO. This is useful if you want to interface
+with SAGA from a simulation that is not written in Python (like the Thistle Gulch demo). To start the server, run:
+
+`python -m fable_saga.server --type <http or socketio> --port <defaults to 8080> --host <defaults to localhost> --cors <defaults to *>`
+
+Note that the server is for demo purposes and probably not secure, so you should only run it locally or on a secure network.
+If you wanted to write your own server, see the `fable_saga.server` module for details on how that's being done.
+
+HTTP
+----
+
+`python -m fable_saga.server --type http`
+
+The HTTP server is a REST API that accepts POST requests to the `/` endpoint. The body of the request should be a JSON
+object with the skills and context defined. You can optionally pass a "reference" that will be returned as well.
+
+```
+curl --request POST \
+  --url http://localhost:8080/ \
+  --header 'content-type: application/json' \
+  --data '{
+  "reference": "1234",
+  "context": "You are a mouse",
+  "skills": [{
+    "name": "goto",
+    "description": "go somewhere",
+  	"parameters": {
+      "location": "<str: where you want to go>"
+    }
+  }]
+}'
+```
+
+
+The response looks like this:
+```
+{
+  "actions": {
+    "options": [
+      {
+        "skill": "goto",
+        "parameters": {
+          "location": "garden"
+        }
+      },
+      ... all the other options
+    ],
+    "scores": [
+      0.9,
+      .. all the other scores
+    ],
+    "raw_prompt": <str: the raw prompt that was sent to the model, useful to debug.>,
+    "raw_response": <str: the raw response from the model, useful if parsing failed and to debug.>,
+    "llm_info": { ..this is specific to the model you are using, but openai models have this structure..
+      "token_usage": { 
+        "prompt_tokens": 164,
+        "completion_tokens": 123,
+        "total_tokens": 287
+      },
+      "model_name": "gpt-3.5-turbo"
+    },
+    "retries": 0, .. number of times the model was retried due to errors
+    "error": null .. the error of the last try. null if no errors.
+  },
+  "error": null, .. the error either of the last try, or an error with the request itself.
+  "reference": "1234" .. the reference you passed in
+}
+```
+
+SocketIO
+--------
+
+`python -m fable_saga.server --type socketio`
+
+The SocketIO server works similarly to the HTTP server, but it uses SocketIO instead.
+You need to pass messages to the `generate-actions` event using the same JSON structure above, and the
+response will be sent back to the same client that made the request in an async fashion.
+
+The SocketIO server supports v4 of the SocketIO protocol, so you can use the SocketIO client of your choice.
+
+When a client successfully connects to the server, you will see the following message:
+
+`2023-12-22 12:50:07,972 - saga.server - INFO - connect:9CzowyUdrI1EOG0TAAAB`
 
 Space Colony Demo
 ==================
@@ -32,13 +120,13 @@ can generate a lot of interesting behavior. The actions they can take are define
 are listed in the `demos/space_colony/resources/skills.yaml` file. Here are two of them:
 
 ```Yaml
-- guid: go_to
+- name: go_to
   description: "Go to a location in the world"
   parameters:
     destination: "<str: persona_guid, item_guid, or location.name to go to>"
     goal: "<str: goal of the movement>"
 
-- guid: converse_with
+- name: converse_with
   description: "Walk to another character and talk to them"
   parameters:
     persona_guid: "<str: guid of the persona to converse with. You cannot talk to yourself.>"
@@ -100,9 +188,12 @@ Large Language Models
 The demo uses the `gpt-3.5-turbo-1106` model from OpenAI by default. This model doesn't produce the best
 results, but it's about 10x faster than GPT-4, and also cheaper to use. You can change the model used
 by setting the `fable_saga.default_openai_model_name` parameter to the model of your choice. You can also go with another model
-provider supported by LangChain. The demo uses OpenAI because it's the easiest to get started with.
+provider supported by LangChain and pass that in when creating the agent.
 
-SAGA parses the output as JSON, so you can use any model that outputs JSON.
+The demo uses OpenAI because it's the easiest to get started with, is very effective, and supports json output well.
+SAGA parses the output as JSON, so you can use any model that outputs JSON. If you use a different model, you may need
+to add more specifics to the context that the model should only generate valid JSON or fine tune the model to
+produce better results.
 
 Installing as a PyPi Package
 -------------
