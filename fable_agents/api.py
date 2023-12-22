@@ -1,9 +1,10 @@
 import json
 import random
 from datetime import datetime
-from typing import List, Callable, Optional, Any, Dict
+from typing import List, Callable, Optional, Any, Dict, Tuple
 
 from cattr import unstructure
+from langchain import PromptTemplate
 
 from fable_agents import ai, models
 from fable_agents.ai import Agent
@@ -263,12 +264,13 @@ class GaiaAPI:
                                sequences: [List[SequenceUpdate]], metaaffordances: MetaAffordances,
                                conversations: List[Conversation], personas: List[Persona],
                                recent_goals: List[str], current_timestamp: datetime,
-                               default_action: str) -> List[Dict[str, Any]]:
+                               default_action: str,
+                               model_name: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
 
         initiator_persona = Datastore.personas.personas.get(persona_id, None)
         if initiator_persona is None:
             print('Error: persona not found.')
-            return []
+            return {}, ''
 
         # memories = datastore.memory_vectors.load_memory_variables({'context': context})
 
@@ -278,13 +280,10 @@ class GaiaAPI:
         # TODO: Perhaps refine the number of actions generated or other options based on the resolution.
         if resolution == Resolution.HIGH:
             prompt = load_prompt("prompt_templates/actions_v1.yaml")
-            # For now we load the latest GPT-4 for high resolution.
-            model_name = "gpt-4-1106-preview"
             retries = 1
         else:
             # For now we load the latest GPT-3 for all others.
             prompt = load_prompt("prompt_templates/actions_v1.yaml")
-            model_name = "gpt-4-1106-preview"
             # Remove converse_with for right now for low resolution.
             action_options = [item for item in action_options if item.get('action') != 'converse_with']
             # If it fails, don't retry.
@@ -293,12 +292,12 @@ class GaiaAPI:
         # Append the default action to the list of options if one is provided.
         if default_action is not None and default_action != '':
             action_options.append({'action': 'default_action',
-                                   'description': "Do what you would normally do in this context: " + default_action, 'parameters': {}})
+                                   'description': "Do what you would normally do in this context: " + default_action,
+                                   'parameters': {}})
 
-        llm = ChatOpenAI(temperature=0.9, model_name=model_name, model_kwargs={
-            "response_format": {"type": "json_object"}})
+        llm = ChatOpenAI(temperature=0.9, model_name=model_name, model_kwargs={"response_format": {"type": "json_object"}})
         chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
-        options = []
+        options = {}
         while retries >= 0 and len(options) == 0:
             resp = await chain.arun(time=Format.simple_datetime(current_timestamp),
                                     persona_guid=persona_id,
@@ -320,13 +319,27 @@ class GaiaAPI:
                 options = json.loads(resp)
             except (json.JSONDecodeError, TypeError) as e:
                 print("Error decoding response", e, resp)
-                options = []
             if len(options) == 0:
                 print("No options found. Retrying.")
                 retries -= 1
             else:
                 break
-        return options
+
+        return options, prompt.format_prompt(time=Format.simple_datetime(current_timestamp),
+                                    persona_guid=persona_id,
+                                    self_description=json.dumps(Format.persona(initiator_persona)),
+                                    self_update=json.dumps(Format.observer(observer_update)),
+                                    observations=json.dumps([Format.observation_event(evt) for evt in observations]),
+                                    sequences=json.dumps([]), # Ignore sequence data for now as it's noisy. Format.sequence_updates(sequences, current_timestamp)),
+                                    action_options=json.dumps(action_options),
+                                    conversations=json.dumps([Format.conversation(convo, current_timestamp) for convo in conversations]),
+                                    personas=json.dumps([Format.persona_short(persona) for persona in personas]),
+                                    interact_options=json.dumps(
+                                        [Format.interaction_option(affordance) for affordance in metaaffordances.affordances.values()]),
+                                    recent_goals=json.dumps(recent_goals),
+                                    locations=json.dumps(Format.location_tree(list(Datastore.locations.nodes.values()))),
+                                    memories=json.dumps(Format.memories(Datastore.memories.get(persona_id), current_timestamp)),
+                                    extra=json.dumps(Datastore.extra)).to_string()
 
 
 class SimulationAPI:

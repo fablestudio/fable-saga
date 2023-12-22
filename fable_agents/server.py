@@ -120,13 +120,13 @@ async def message(sid, message_type, message_data):
             recent_conversations = list(Datastore.conversations.get(persona_guid)[-10:])
             personas = list(Datastore.personas.personas.values())
             recent_goals = list(Datastore.recent_goals_chosen.get(persona_guid, []))
+            model_name = "gpt-3.5-turbo-1106"
 
-            response = await API.gaia.create_reactions(resolution, persona_guid, last_action_by_persona, last_observations,
-                                                recent_sequences,
-                                                Datastore.meta_affordances,
-                                                recent_conversations,
-                                                personas, recent_goals, current_timestamp, default_action,
-                                                )
+            response, prompt = await API.gaia.create_reactions(resolution, persona_guid, last_action_by_persona, last_observations,
+                                                       recent_sequences,
+                                                       Datastore.meta_affordances,
+                                                       recent_conversations,
+                                                       personas, recent_goals, current_timestamp, default_action, model_name)
             options = response.get('options', [])
             scores = response.get('scores', [])
             print("OPTIONS:", json.dumps(response))
@@ -135,6 +135,8 @@ async def message(sid, message_type, message_data):
             msg.data['options'] = options
             msg.data['scores'] = scores
             msg.data['persona_guid'] = persona_guid
+            msg.data['model_name'] = model_name
+            msg.data['prompt'] = prompt
 
             return msg.type, json.dumps(msg.data)
 
