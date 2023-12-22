@@ -1,7 +1,15 @@
 import datetime
+from abc import ABC, abstractmethod
 from typing import List, Dict
 from attr import define
-from fable_saga import EntityId, EntityInterface
+
+EntityId = str
+
+
+class EntityInterface(ABC):
+    @abstractmethod
+    def id(self) -> EntityId:
+        pass
 
 
 @define(slots=True)

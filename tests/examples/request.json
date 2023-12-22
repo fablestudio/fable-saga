@@ -1,0 +1,13 @@
+{
+  "reference": "asdfasfasdf",
+  "context": "You are a mouse",
+  "skills": [
+    {
+      "name": "goto",
+      "description": "go somewhere",
+      "parameters": {
+        "location": "<str: where you want to go>"
+      }
+    }
+  ]
+}
