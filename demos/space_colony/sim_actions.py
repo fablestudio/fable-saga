@@ -1,18 +1,19 @@
 from datetime import timedelta
 from typing import Dict, Any
 
+import fable_saga
 from demos.space_colony import sim_models
 from demos.space_colony.simulation import SimAgent, Simulation
-from fable_saga import EntityId
+from demos.space_colony.sim_models import EntityId
 
 
 class SimAction:
     """Base class for all actions."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         self.agent = agent
-        self.action_data: Dict[str, Any] = action_data
-        self.skill: str = action_data['skill']
-        self.parameters: Dict[str, Any] = action_data.get('parameters', {})
+        self.action_data: fable_saga.Action = action_data
+        self.skill: str = action_data.skill
+        self.parameters: Dict[str, Any] = action_data.parameters
         self.start_time = None
         self.run_time = timedelta()
         self.end_time = None
@@ -38,7 +39,7 @@ class SimAction:
 
 class GoTo(SimAction):
     """Move to a new location."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.destination: EntityId = self.parameters.get('destination', "")
         self.goal: str = self.parameters.get('goal', "None")
@@ -59,7 +60,7 @@ class GoTo(SimAction):
 
 class Interact(SimAction):
     """Interact with an object using a specific interaction."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.item_guid: EntityId = self.parameters.get('item_guid', None)
         self.interaction: str = self.parameters.get('interaction', None)
@@ -79,7 +80,7 @@ class Interact(SimAction):
 
 class Wait(SimAction):
     """Wait for a period of time."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.duration: int = int(self.parameters.get('duration', 0))
         self.remaining_time: timedelta = timedelta(minutes=self.duration)
@@ -100,7 +101,7 @@ class Wait(SimAction):
 
 class Reflect(SimAction):
     """Reflect on something and synthesize a new idea."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.focus: str = self.parameters.get('focus', "")
         self.result: str = self.parameters.get('result', "")
@@ -121,13 +122,13 @@ class Reflect(SimAction):
 
 class ConverseWith(SimAction):
     """Converse with another persona."""
-    def __init__(self, agent: SimAgent, action_data: Dict[str, Any]):
+    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
 
-        self.persona_guid = action_data['parameters']['persona_guid']
-        self.topic = action_data['parameters']['topic']
-        self.context = action_data['parameters']['context']
-        self.goal = action_data['parameters']['goal']
+        self.persona_guid = self.parameters['persona_guid']
+        self.topic = self.parameters['topic']
+        self.context = self.parameters['context']
+        self.goal = self.parameters.get('goal', "")  # sometimes goal doesn't get generated, so default to empty string.
 
     def tick(self, delta: timedelta, sim: Simulation):
         super().tick(delta, sim)

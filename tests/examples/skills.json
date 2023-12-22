@@ -1,10 +1,14 @@
 [
   {
-    "skill": "skill_1",
-    "parameters": []
+    "name": "skill_1",
+    "description": "This is a skill description",
+    "parameters": {
+      "param_1": "param_description_1"
+    }
   },
   {
-    "skill": "skill_2",
-    "parameters": []
+    "name": "skill_2",
+    "description": "This is another skill description with no parameters",
+    "parameters": {}
   }
 ]

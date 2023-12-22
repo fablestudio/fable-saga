@@ -1,53 +1,24 @@
 import asyncio
 import json
 import pathlib
-from typing import List, Dict, Optional, Coroutine, Any
+from typing import List, Dict, Optional, Any
 import cattrs
 import yaml
 from datetime import datetime, timedelta
 import fable_saga
-from fable_saga import EntityId
 import sim_models
 
 
 class SimAgent:
     """A SimAgent is a persona in the simulation. It has a persona, a location, and a set of skills."""
 
-    def __init__(self, guid: EntityId):
+    def __init__(self, guid: sim_models.EntityId):
         self.guid = guid
         self.persona: Optional[sim_models.Persona] = None
         self.location: Optional[sim_models.Location] = None
         self.skills: List[sim_models.Skill] = []
-        self.saga_agent: Optional[fable_saga.Agent] = None
         self.action: Optional['sim_actions.SimAction'] = None
         self.memories: List[sim_models.Memory] = []
-
-    async def generate_actions(self, sim: 'Simulation', retries=0, verbose=False) -> [List[Dict[str, Any]]]:
-        """Generate actions for this agent using the SAGA agent."""
-        if self.saga_agent is None:
-            raise ValueError("Saga agent not initialized.")
-
-        print(f"Generating actions for {self.persona.id()} using model {self.saga_agent._llm.model_name}...")
-        context = ""
-        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
-        context += "LOCATIONS: The following locations are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
-        context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in self.memories])}\n"
-        context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
-
-        if self.persona is not None:
-            context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
-                       + "to a space colony on one of Jupiter's moons to deliver supplies. It's still 30 days before " \
-                       + "you reach your destination\n"
-            context += f"You are {self.persona.id()}.\n\n"
-
-        if self.location is not None:
-            context += f"Your location is {self.location.id()}.\n"
-
-        return await self.saga_agent.actions(context, [cattrs.unstructure(s) for s in self.skills], retries=retries, verbose=verbose)
 
     async def tick_action(self, delta: timedelta, sim: 'Simulation'):
         """Tick the current action to advance and/or complete it."""
@@ -58,19 +29,11 @@ class SimAgent:
     async def tick(self, delta: timedelta, sim: 'Simulation'):
         """Tick the agent to advance its current action or choose a new one."""
 
-        def sort_actions(actions: Dict[str, Any]):
-            """Sort the actions by score."""
-            scores = actions['scores']
-            options = actions['options']
-            sorted_actions = sorted(zip(scores, options), key=lambda x: x[0], reverse=True)
-            actions['scores'] = [x[0] for x in sorted_actions]
-            actions['options'] = [x[1] for x in sorted_actions]
-
-        def list_actions(actions: Dict[str, Any]):
+        def list_actions(actions: fable_saga.GeneratedActions):
             """List the actions byt printing to the console."""
-            for i, action in enumerate(actions['options']):
-                output = f"#{i} -- {action['skill']} ({actions['scores'][i]})\n"
-                for key, value in action['parameters'].items():
+            for i, action in enumerate(actions.options):
+                output = f"#{i} -- {action.skill} ({actions.scores[i]})\n"
+                for key, value in action.parameters.items():
                     output += f"  {key}: {value}"
                 print(output)
 
@@ -79,35 +42,35 @@ class SimAgent:
             item = input(f"Choose an item for {self.persona.id()}...")
             return int(item)
 
-        def handle_action(action: Dict[str, Any]):
+        def handle_action(action: fable_saga.Action):
             """Handle the chosen action."""
             from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
-            if action['skill'] == 'go_to':
+            if action.skill == 'go_to':
                 self.action = GoTo(self, action)
-            elif action['skill'] == 'interact':
+            elif action.skill == 'interact':
                 self.action = Interact(self, action)
-            elif action['skill'] == 'converse_with':
+            elif action.skill == 'converse_with':
                 self.action = ConverseWith(self, action)
-            elif action['skill'] == 'wait':
+            elif action.skill == 'wait':
                 self.action = Wait(self, action)
-            elif action['skill'] == 'reflect':
+            elif action.skill == 'reflect':
                 self.action = Reflect(self, action)
             else:
-                print(f"Unknown action {action['skill']}.")
+                print(f"Unknown action {action.skill}.")
         # Tick the current action if there is one.
         if self.action is not None:
             await self.tick_action(delta, sim)
         # Choose a new action.
         else:
-            actions = await self.generate_actions(sim, verbose=False)
+            actions = await sim.generate_actions(self, verbose=False)
             print(f"\n========== {self.persona.id()} ===========")
-            sort_actions(actions)
+            actions.sort()
             list_actions(actions)
             while True:
                 idx = choose_action()
-                if 0 <= idx < len(actions['options']):
-                    handle_action(actions['options'][idx])
-                    print(f"Chose action {actions['options'][idx]['skill']}.")
+                if 0 <= idx < len(actions.options):
+                    handle_action(actions.options[idx])
+                    print(f"Chose action {actions.options[idx].skill}.")
                     break
                 else:
                     print(f"Invalid choice {idx}.")
@@ -118,13 +81,15 @@ class Simulation:
         # The current time on the ship.
         self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
         # The crew on the ship.
-        self.agents: Dict[EntityId, SimAgent] = {}
+        self.agents: Dict[sim_models.EntityId, SimAgent] = {}
         # The locations on the ship.
-        self.locations: Dict[EntityId, sim_models.Location] = {}
+        self.locations: Dict[sim_models.EntityId, sim_models.Location] = {}
         # The interactable objects on the ship.
-        self.interactable_objects: Dict[EntityId, sim_models.InteractableObject] = {}
+        self.interactable_objects: Dict[sim_models.EntityId, sim_models.InteractableObject] = {}
         # A queue of action requests to process from SAGA.
         self.actionsQueue: asyncio.Queue = asyncio.Queue()
+        # Create a saga agent for each persona.
+        self.saga_agent = fable_saga.Agent()
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -139,10 +104,8 @@ class Simulation:
                 persona = cattrs.structure(persona_data, sim_models.Persona)
                 agent = SimAgent(persona.id())
                 agent.persona = persona
-                # Create a saga agent for each persona.
-                agent.saga_agent = fable_saga.Agent(persona.id())
                 # Start everyone in the crew quarters corridor.
-                agent.location = self.locations[EntityId('crew_quarters_corridor')]
+                agent.location = self.locations[sim_models.EntityId('crew_quarters_corridor')]
                 self.agents[persona.id()] = agent
 
         with open(path / 'resources/interactable_objects.yaml', 'r') as f:
@@ -153,7 +116,7 @@ class Simulation:
         with open(path / 'resources/skills.yaml', 'r') as f:
             skills = []
             for skill_data in yaml.load(f, Loader=yaml.FullLoader):
-                skills.append(cattrs.structure(skill_data, sim_models.Skill))
+                skills.append(cattrs.structure(skill_data, fable_saga.Skill))
             for agent in self.agents.values():
                 agent.skills = skills
 
@@ -162,6 +125,32 @@ class Simulation:
         self.sim_time += delta
         for agent in self.agents.values():
             self.actionsQueue.put_nowait(agent.tick(delta, self))
+
+    async def generate_actions(self, sim_agent: SimAgent, retries=0, verbose=False) -> [List[Dict[str, Any]]]:
+        """Generate actions for this agent using the SAGA agent."""
+
+        print(f"Generating actions for {sim_agent.persona.id()} ...")
+        context = ""
+        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in self.agents.values()])}\n"
+        context += "LOCATIONS: The following locations are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(location) for location in self.locations.values()])}\n"
+        context += "MEMORIES: The following memories are available:\n" \
+                   + f"{json.dumps([Format.memory(memory, self.sim_time) for memory in sim_agent.memories])}\n"
+        context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(obj) for obj in self.interactable_objects.values()])}\n"
+
+        if sim_agent.persona is not None:
+            context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
+                       + "to a space colony on one of Jupiter's moons to deliver supplies. It's still 30 days before " \
+                       + "you reach your destination\n"
+            context += f"You are {sim_agent.persona.id()}.\n\n"
+
+        if sim_agent.location is not None:
+            context += f"Your location is {sim_agent.location.id()}.\n"
+
+        return await self.saga_agent.generate_actions(context, sim_agent.skills,
+                                                      max_tries=retries, verbose=verbose)
 
 
 class Format:
