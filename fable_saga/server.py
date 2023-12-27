@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import cattrs
 from attr import define
-from aiohttp import web
+from aiohttp import web, WSMsgType
 import socketio
 from cattrs import structure, unstructure
 from langchain.chat_models.base import BaseLanguageModel
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--type', type=str, required=True, help="Type of server to run.", choices=["socketio", "http"])
+    parser.add_argument('--type', type=str, required=True, help="Type of server to run.", choices=["socketio", "http", "websockets"])
     parser.add_argument('--host', type=str, default='localhost', help='Host to listen on')
     parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
     parser.add_argument('--cors', type=str, default=None, help='CORS origin')
@@ -186,6 +186,48 @@ if __name__ == '__main__':
 
         # Listen for POST requests on the root path
         app.add_routes([web.post('/', generate_actions)])
+
+    elif args.type == 'websockets':
+        async def websocket_handler(request):
+            logger.info('Websocket connection starting')
+            ws = web.WebSocketResponse()
+            await ws.prepare(request)
+            logger.info('Websocket connection ready')
+
+            async for msg in ws:
+                try:
+                    if msg.type == WSMsgType.ERROR:
+                        print('ws connection closed with exception %s' %
+                        ws.exception())
+                    elif msg.type == WSMsgType.TEXT:
+                        print(msg.data)
+                        if msg.data == 'close':
+                            await ws.close()
+                        else:
+                            error = ""
+                            data = json.loads(msg.data)
+                            try:
+                                actions_req: ActionsRequest = structure(data, ActionsRequest)
+                                actions_response = await server.generate_actions(actions_req)
+                                response = unstructure(actions_response)
+                                logger.debug(f"Response: {response}")
+                                await ws.send_json(response)
+                                continue
+                            except cattrs.errors.ClassValidationError as e:
+                                error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+                            except Exception as e:
+                                error = str(e)
+                            logger.error(error)
+                            await ws.send_json(
+                                unstructure(ActionsResponse(actions=None, error=error, reference=data.get('reference'))))
+                except Exception as e:
+                    logger.error(str(e))
+                    continue
+            print('Websocket connection closed')
+            return ws
+
+        app.router.add_route('GET', '/ws', websocket_handler)
+
 
     else:
         raise ValueError("Invalid server type: " + args.type)
