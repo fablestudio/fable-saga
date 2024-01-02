@@ -19,12 +19,12 @@ The Space Colony demo is a simple text-based simulation of a spaceship with a cr
 repo to make it easier to test it out and have an example to work from. See the section below for more details on
 running it, as well as how it uses SAGA to generate actions.
 
-Using as a Server (HTTP or SocketIO)
+Using as a Server (HTTP, Websockets or SocketIO)
 ==================
-SAGA can be used as a server that can be connected to via HTTP or SocketIO. This is useful if you want to interface
+SAGA can be used as a server that can be connected to via HTTP, Websockets or SocketIO. This is useful if you want to interface
 with SAGA from a simulation that is not written in Python (like the Thistle Gulch demo). To start the server, run:
 
-`python -m fable_saga.server --type <http or socketio> --port <defaults to 8080> --host <defaults to localhost> --cors <defaults to *>`
+`python -m fable_saga.server --type <http, websockets or socketio> --port <defaults to 8080> --host <defaults to localhost> --cors <defaults to *>`
 
 Note that the server is for demo purposes and probably not secure, so you should only run it locally or on a secure network.
 If you wanted to write your own server, see the `fable_saga.server` module for details on how that's being done.
@@ -104,6 +104,29 @@ The SocketIO server supports v4 of the SocketIO protocol, so you can use the Soc
 When a client successfully connects to the server, you will see the following message:
 
 `2023-12-22 12:50:07,972 - saga.server - INFO - connect:9CzowyUdrI1EOG0TAAAB`
+
+
+Websockets
+-------
+`python -m fable_saga.server --type websockets`
+
+Very similar to socketio (which uses websockets as part of its protocol). Websockets alone misses some features of socketio but works in a very similar way.
+Simply connect to ws://127.0.0.1:8080/ws (by default) and send the same message and you will get a response.
+
+```Json
+{
+  "reference": 1234,
+  "context": "You are a mouse",
+  "skills": [{
+    "name": "goto",
+    "description": "go somewhere",
+  	"parameters": {
+      "location": "<str: where you want to go>"
+    }
+  }]
+}
+```
+
 
 Space Colony Demo
 ==================
