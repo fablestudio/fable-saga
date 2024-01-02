@@ -60,8 +60,6 @@ class SagaServer:
     """ Server for SAGA. """
     def __init__(self, llm: BaseLanguageModel = None):
         super().__init__()
-        if llm is None:
-            llm = fable_saga.ChatOpenAI()
         self.agent = fable_saga.Agent(llm)
 
     async def generate_actions(self, req: ActionsRequest) -> ActionsResponse:
@@ -90,6 +88,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Create common server objects
+    # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
     server = SagaServer()
     app = web.Application()
 
