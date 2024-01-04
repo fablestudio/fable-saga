@@ -46,6 +46,7 @@ class ActionsRequest:
     retries: int = 0
     verbose: bool = False
     reference: Optional[str] = None
+    model: Optional[str] = None
 
 
 @define(slots=True)
@@ -66,7 +67,7 @@ class SagaServer:
         # Generate actions
         try:
             assert isinstance(req, ActionsRequest), f"Invalid request type: {type(req)}"
-            actions = await self.agent.generate_actions(req.context, req.skills, req.retries, req.verbose)
+            actions = await self.agent.generate_actions(req.context, req.skills, req.retries, req.verbose, req.model)
             response = ActionsResponse(actions=actions, reference=req.reference)
             if actions.error is not None:
                 response.error = f"Generation Error: {actions.error}"

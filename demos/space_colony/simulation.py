@@ -126,7 +126,7 @@ class Simulation:
         for agent in self.agents.values():
             self.actionsQueue.put_nowait(agent.tick(delta, self))
 
-    async def generate_actions(self, sim_agent: SimAgent, retries=0, verbose=False) -> [List[Dict[str, Any]]]:
+    async def generate_actions(self, sim_agent: SimAgent, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
@@ -150,7 +150,7 @@ class Simulation:
             context += f"Your location is {sim_agent.location.id()}.\n"
 
         return await self.saga_agent.generate_actions(context, sim_agent.skills,
-                                                      max_tries=retries, verbose=verbose)
+                                                      max_tries=retries, verbose=verbose, model_override=model_override)
 
 
 class Format:
