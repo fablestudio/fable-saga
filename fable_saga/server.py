@@ -252,7 +252,7 @@ if __name__ == '__main__':
 
         routes = web.RouteTableDef()
 
-        @routes.post('/actions')
+        @routes.post('/generate-actions')
         async def generate_actions(request):
             """Handle POST requests to the server."""
             message_str = await request.text()
@@ -261,7 +261,7 @@ if __name__ == '__main__':
             return web.json_response(response)
 
 
-        @routes.post('/embeddings')
+        @routes.post('/generate-embeddings')
         async def generate_embeddings(request):
             """Handle POST requests to the server."""
             message_str = await request.text()
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                                        EmbeddingsResponse)
             return web.json_response(response)
 
-        @routes.post('/documents/add')
+        @routes.post('/add-documents')
         async def add_documents(request):
             """Handle POST requests to the server."""
             message_str = await request.text()
@@ -279,7 +279,7 @@ if __name__ == '__main__':
                                        AddDocumentsResponse)
             return web.json_response(response)
 
-        @routes.post('/documents/similar')
+        @routes.post('/find-similar')
         async def find_similar(request):
             """Handle POST requests to the server."""
             message_str = await request.text()
@@ -313,8 +313,8 @@ if __name__ == '__main__':
                         else:
                             try:
                                 data = json.loads(msg.data)
-                                request_type = data.get('request')
-                                request_data = data.get('data')
+                                request_type = data.get('request-type')
+                                request_data = data.get('request-data')
 
                                 if request_type == 'generate-actions':
                                     response = await generic_handler(request_data, ActionsRequest,
@@ -333,12 +333,12 @@ if __name__ == '__main__':
                                                                      embeddings_server.find_similar,
                                                                      FindSimilarResponse)
                                 else:
-                                    error = f"Invalid request type: {request_type}"
+                                    error = f"Invalid request-type: {request_type}"
                                     logger.error(error)
-                                    response = ErrorResponse(error=error)
+                                    response = converter.unstructure(ErrorResponse(error=error))
                             except Exception as e:
                                 logger.error(str(e))
-                                response = ErrorResponse(error=str(e))
+                                response = converter.unstructure(ErrorResponse(error=str(e)))
                             await ws.send_json(response)
                 except Exception as e:
                     logger.error(str(e))
