@@ -1,6 +1,7 @@
 {
   "reference": "asdfasfasdf",
   "context": "You are a mouse",
+  "model": "test_model",
   "skills": [
     {
       "name": "goto",

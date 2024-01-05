@@ -102,10 +102,11 @@ class Agent:
         path = pathlib.Path(__file__).parent.resolve()
         self.prompt = load_prompt(path / "prompt_templates/generate_actions.yaml")
 
-    def chain(self) -> LLMChain:
+    def chain(self, model_override: Optional[str] = None) -> LLMChain:
+        self._llm.model_name = model_override if model_override else default_openai_model_name
         return LLMChain(llm=self._llm, prompt=self.prompt)
 
-    async def generate_actions(self, context: str, skills: List[Skill], max_tries=0, verbose=False) -> GeneratedActions:
+    async def generate_actions(self, context: str, skills: List[Skill], max_tries=0, verbose=False, model_override: Optional[str] = None) -> GeneratedActions:
         """Generate actions for the given context and skills."""
         assert context is not None and len(context) > 0, "Must provide a context."
         assert skills is not None and len(skills) > 0, "Must provide at least one skill."
@@ -114,7 +115,7 @@ class Agent:
             assert skill.name is not None and len(skill.name) > 0, "Must provide a skill name."
             assert skill.description is not None and len(skill.description) > 0, "Must provide a skill description."
 
-        chain = self.chain()
+        chain = self.chain(model_override)
         chain.verbose = verbose
 
         # Set up the callback handler.
