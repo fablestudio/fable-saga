@@ -5,7 +5,7 @@ from cattr import unstructure, structure
 from langchain.chat_models.fake import FakeListChatModel
 
 import fable_saga
-from fable_saga.server import SagaServer, ActionsRequest, EmbeddingsServer
+from fable_saga.server import ActionsRequest
 
 
 class FakeChatOpenAI(FakeListChatModel):
@@ -30,8 +30,8 @@ def fake_skills():
 @pytest.fixture
 def fake_request():
     request_data = json.load(open("examples/request.json"))
-    request = structure(request_data, ActionsRequest)
-    return request
+    req = structure(request_data, ActionsRequest)
+    return req
 
 
 class TestSagaAgent:

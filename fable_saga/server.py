@@ -4,18 +4,19 @@ import logging
 import struct
 from typing import List, Optional, Type, Dict, Union
 
-import numpy
 import cattrs
-from attr import define
-from aiohttp import web, WSMsgType
 import socketio
-from cattrs import structure, unstructure
+from aiohttp import web, WSMsgType
+from attr import define
 from langchain.chat_models.base import BaseLanguageModel
 
 import fable_saga
 from fable_saga.embeddings import Document, EmbeddingAgent
 
 logger = logging.getLogger(__name__)
+
+# module level converter to convert between objects and dicts.
+converter = cattrs.Converter(forbid_extra_keys=True)
 
 """
 Sets up a server that can be used to generate actions for SAGA. Either HTTP or socketio can be used.
@@ -44,14 +45,14 @@ class ActionsResponse:
 @define(slots=True)
 class EmbeddingsRequest:
     """Request to generate embeddings."""
-    texts: List[str] = []
+    texts: List[str]
     reference: Optional[str] = None
 
 
 @define(slots=True)
 class EmbeddingsResponse:
     """Response from generating embeddings."""
-    embeddings: List[str] = None  # These are actually lists of floats, but we pack to base64 basically.
+    embeddings: List[str] = []  # These are actually lists of floats, but we pack to base64 basically.
     error: str = None
     reference: Optional[str] = None
 
@@ -156,12 +157,37 @@ class EmbeddingsServer:
             return FindSimilarResponse(documents=[], scores=[], error=str(e), reference=req.reference)
 
 
+async def generic_handler(data: Union[str, Dict], request_type: Type, process_function, response_type: Type):
+    try:
+        if isinstance(data, str):
+            data = json.loads(data)
+        # noinspection PyTypeChecker
+        request = converter.structure(data, request_type)
+        result = await process_function(request)
+        assert isinstance(result, response_type), (f"Invalid response type: {type(result)},"
+                                                   f" expected instance of {response_type}")
+        response = converter.unstructure(result)
+        logger.debug(f"Response: {response}")
+        return response
+    except json.decoder.JSONDecodeError as e:
+        error = f"Error decoding JSON: {str(e)}"
+    except cattrs.errors.ClassValidationError as e:
+        error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+    except Exception as e:
+        error = f"Error processing request: {str(e)}"
+    logger.error(error)
+    response = response_type(error=error)
+    output = converter.unstructure(response)
+    return output
+
+
 if __name__ == '__main__':
 
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--type', type=str, required=True, help="Type of server to run.", choices=["socketio", "http", "websockets"])
+    parser.add_argument('--type', type=str, required=True, help="Type of server to run.",
+                        choices=["socketio", "http", "websockets"])
     parser.add_argument('--host', type=str, default='localhost', help='Host to listen on')
     parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
     parser.add_argument('--cors', type=str, default=None, help='CORS origin')
@@ -174,23 +200,6 @@ if __name__ == '__main__':
 
     app = web.Application()
 
-
-    async def generic_handler(data: Union[str, Dict], request_type: Type, process_function, response_type: Type):
-        try:
-            if isinstance(data, str):
-                data = json.loads(data)
-            request = structure(data, request_type)
-            result = await process_function(request)
-            response = unstructure(result)
-            logger.debug(f"Response: {response}")
-            return response
-        except cattrs.errors.ClassValidationError as e:
-            error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
-        except Exception as e:
-            error = str(e)
-        logger.error(error)
-        return unstructure(response_type(error=error))
-
     # Create socketio server
     if args.type == 'socketio':
         if args.cors is None:
@@ -199,7 +208,7 @@ if __name__ == '__main__':
         sio.attach(app)
 
         @sio.event
-        def connect(sid, environ):
+        def connect(sid, _):
             logger.info("connect:" + sid)
 
         @sio.event
@@ -309,16 +318,20 @@ if __name__ == '__main__':
 
                                 if request_type == 'generate-actions':
                                     response = await generic_handler(request_data, ActionsRequest,
-                                                                     saga_server.generate_actions, ActionsResponse)
+                                                                     saga_server.generate_actions,
+                                                                     ActionsResponse)
                                 elif request_type == 'generate-embeddings':
                                     response = await generic_handler(request_data, EmbeddingsRequest,
-                                                                     embeddings_server.generate_embeddings, EmbeddingsResponse)
+                                                                     embeddings_server.generate_embeddings,
+                                                                     EmbeddingsResponse)
                                 elif request_type == 'add-documents':
                                     response = await generic_handler(request_data, AddDocumentsRequest,
-                                                                     embeddings_server.add_documents, AddDocumentsResponse)
+                                                                     embeddings_server.add_documents,
+                                                                     AddDocumentsResponse)
                                 elif request_type == 'find-similar':
                                     response = await generic_handler(request_data, FindSimilarRequest,
-                                                                     embeddings_server.find_similar, FindSimilarResponse)
+                                                                     embeddings_server.find_similar,
+                                                                     FindSimilarResponse)
                                 else:
                                     error = f"Invalid request type: {request_type}"
                                     logger.error(error)
