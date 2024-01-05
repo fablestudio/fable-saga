@@ -27,7 +27,7 @@ Sets up a server that can be used to generate actions for SAGA. Either HTTP or s
 class ActionsRequest:
     """Request to generate actions."""
     context: str
-    skills: List[fable_saga.Skill] = []
+    skills: List[fable_saga.Skill]
     retries: int = 0
     verbose: bool = False
     reference: Optional[str] = None
@@ -52,7 +52,7 @@ class EmbeddingsRequest:
 @define(slots=True)
 class EmbeddingsResponse:
     """Response from generating embeddings."""
-    embeddings: List[str] = []  # These are actually lists of floats, but we pack to base64 basically.
+    embeddings: List[str] = []  # Actually list of List[float], but we pack 4 bytes per and then base64 encode them.
     error: str = None
     reference: Optional[str] = None
 
@@ -60,7 +60,7 @@ class EmbeddingsResponse:
 @define(slots=True)
 class AddDocumentsRequest:
     """Request to add documents."""
-    documents: List[Document] = []
+    documents: List[Document]
     reference: Optional[str] = None
 
 
@@ -75,7 +75,7 @@ class AddDocumentsResponse:
 @define(slots=True)
 class FindSimilarRequest:
     """Request to find similar documents."""
-    query: str = ""
+    query: str
     k: int = 5
     reference: Optional[str] = None
 
