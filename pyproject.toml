@@ -8,8 +8,13 @@ packages = [{include = "fable_saga"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
+aiohttp = "^3.8.5"
 langchain = {extras = ["llms"], version = "^0.0.293"}
+python-dateutil = "^2.8.2"
+tiktoken = "^0.5.1"
+datetime = "^5.3"
 
 
 [tool.poetry.group.test]
