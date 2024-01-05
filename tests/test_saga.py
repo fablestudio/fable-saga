@@ -5,7 +5,7 @@ from cattr import unstructure, structure
 from langchain.chat_models.fake import FakeListChatModel
 
 import fable_saga
-from fable_saga.server import SagaServer, ActionsRequest
+from fable_saga.server import SagaServer, ActionsRequest, EmbeddingsServer
 
 
 class FakeChatOpenAI(FakeListChatModel):
@@ -34,7 +34,7 @@ def fake_request():
     return request
 
 
-class TestAgent:
+class TestSagaAgent:
     def test_init(self, fake_llm):
         agent = fable_saga.Agent(fake_llm)
         assert agent._llm == fake_llm

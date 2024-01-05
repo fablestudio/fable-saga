@@ -1,0 +1,25 @@
+{
+  "documents": [
+    {
+      "text": "This is the content of the first document",
+      "metadata": {
+        "author": "John Doe",
+        "title": "First document"
+      }
+    },
+    {
+      "text": "This is the content of the second document",
+      "metadata": {
+        "author": "Jane Doe",
+        "title": "Second document"
+      }
+    },
+    {
+      "text": "This is the content of the third document",
+      "metadata": {
+        "author": "John Doe",
+        "title": "Third document"
+      }
+    }
+  ]
+}

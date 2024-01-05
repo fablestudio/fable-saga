@@ -106,6 +106,9 @@ class Agent:
         self._llm.model_name = model_override if model_override else default_openai_model_name
         return LLMChain(llm=self._llm, prompt=self.prompt)
 
+    def generate_embedding(self, context: str) -> str:
+        return self._llm.generate_embedding(context)
+
     async def generate_actions(self, context: str, skills: List[Skill], max_tries=0, verbose=False, model_override: Optional[str] = None) -> GeneratedActions:
         """Generate actions for the given context and skills."""
         assert context is not None and len(context) > 0, "Must provide a context."

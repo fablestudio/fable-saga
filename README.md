@@ -111,7 +111,7 @@ Websockets
 `python -m fable_saga.server --type websockets`
 
 Very similar to socketio (which uses websockets as part of its protocol). Websockets alone misses some features of socketio but works in a very similar way.
-Simply connect to ws://127.0.0.1:8080/ws (by default) and send the same message and you will get a response.
+Simply connect to ws://127.0.0.1:8080 (by default) and send the same message and you will get a response.
 
 ```Json
 {
