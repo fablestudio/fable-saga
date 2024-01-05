@@ -5,14 +5,18 @@ from cattr import unstructure, structure
 from langchain.chat_models.fake import FakeListChatModel
 
 import fable_saga
-from fable_saga.server import SagaServer, ActionsRequest, ActionsResponse
+from fable_saga.server import SagaServer, ActionsRequest
+
+
+class FakeChatOpenAI(FakeListChatModel):
+    model_name: str = 'model_name_default'
 
 
 @pytest.fixture
 def fake_llm():
     actions = json.load(open("examples/generated_actions.json"))
     responses = [json.dumps(action) for action in actions]
-    llm = FakeListChatModel(responses=responses, sleep=0.1)
+    llm = FakeChatOpenAI(responses=responses, sleep=0.1)
     return llm
 
 
@@ -48,7 +52,15 @@ class TestAgent:
 
         # fake_llm.callbacks = [callback_handler]
         agent = fable_saga.Agent(fake_llm)
-        actions = await agent.generate_actions("context", fake_skills)
+
+        # Should be using the default model
+        test_model = 'test_model'
+        assert fake_llm.model_name != test_model
+
+        actions = await agent.generate_actions("context", fake_skills, model_override=test_model)
+
+        # Should be using the test model
+        assert fake_llm.model_name == test_model
 
         # In our test data, we assume 2 actions are generated and are pre-sorted by score.
         assert len(actions.options) == 2
@@ -90,8 +102,15 @@ class TestServer:
 
     @pytest.mark.asyncio
     async def test_generate_actions(self, fake_llm, fake_request):
+
+        # Should be using the default model
+        assert fake_llm.model_name != fake_request.model
+
         server = SagaServer(llm=fake_llm)
         response = await server.generate_actions(fake_request)
+
+        # Should be using the test model
+        assert fake_llm.model_name == fake_request.model
 
         # The response is a valid ActionsResponse
         # Note: we don't throw exceptions in the server, but return the error in the response.
