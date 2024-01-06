@@ -1,4 +1,5 @@
 import asyncio
+import collections
 import json
 import pathlib
 from typing import List, Dict, Optional, Any
@@ -6,7 +7,21 @@ import cattrs
 import yaml
 from datetime import datetime, timedelta
 import fable_saga
-import sim_models
+from demos.space_colony import sim_models
+
+
+class MemoryStore(collections.UserList):
+    """A memory store is a list of memories that can be filtered by a time range."""
+    def __init__(self, memories: List[sim_models.Memory]):
+        super().__init__(memories)
+
+    def filter(self, start_time: datetime, end_time: datetime) -> 'MemoryStore':
+        """Filter the memories by the given time range."""
+        return MemoryStore([memory for memory in self.data if start_time <= memory.timestamp <= end_time])
+
+    def find_similar(self, context, max_results=5):
+        """Find the most similar memories to the given context."""
+        return self.data[:max_results]
 
 
 class SimAgent:
@@ -16,9 +31,10 @@ class SimAgent:
         self.guid = guid
         self.persona: Optional[sim_models.Persona] = None
         self.location: Optional[sim_models.Location] = None
-        self.skills: List[sim_models.Skill] = []
+        self.skills: List[fable_saga.Skill] = []
         self.action: Optional['sim_actions.SimAction'] = None
-        self.memories: List[sim_models.Memory] = []
+        self.memories: MemoryStore = MemoryStore([])
+        self.choose_action_callback = None
 
     async def tick_action(self, delta: timedelta, sim: 'Simulation'):
         """Tick the current action to advance and/or complete it."""
@@ -29,55 +45,42 @@ class SimAgent:
     async def tick(self, delta: timedelta, sim: 'Simulation'):
         """Tick the agent to advance its current action or choose a new one."""
 
-        def list_actions(actions: fable_saga.GeneratedActions):
-            """List the actions byt printing to the console."""
-            for i, action in enumerate(actions.options):
-                output = f"#{i} -- {action.skill} ({actions.scores[i]})\n"
-                for key, value in action.parameters.items():
-                    output += f"  {key}: {value}"
-                print(output)
-
-        def choose_action():
+        async def choose_action(actions: fable_saga.GeneratedActions):
             """Choose an action from the list by choosing a number."""
-            item = input(f"Choose an item for {self.persona.id()}...")
-            return int(item)
+            if self.choose_action_callback is not None:
+                return await self.choose_action_callback(actions)
+            # otherwise, choose the top action.
+            return 0
 
-        def handle_action(action: fable_saga.Action):
-            """Handle the chosen action."""
-            from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
-            if action.skill == 'go_to':
-                self.action = GoTo(self, action)
-            elif action.skill == 'interact':
-                self.action = Interact(self, action)
-            elif action.skill == 'converse_with':
-                self.action = ConverseWith(self, action)
-            elif action.skill == 'wait':
-                self.action = Wait(self, action)
-            elif action.skill == 'reflect':
-                self.action = Reflect(self, action)
-            else:
-                print(f"Unknown action {action.skill}.")
-        # Tick the current action if there is one.
-        if self.action is not None:
-            await self.tick_action(delta, sim)
-        # Choose a new action.
-        else:
-            actions = await sim.generate_actions(self, verbose=False)
+        # Choose an action if we don't have one.
+        if self.action is None:
             print(f"\n========== {self.persona.id()} ===========")
+            actions = await sim.action_generator.generate_action_options(sim, self, verbose=False)
+            if actions.error is not None:
+                print(f"Error generating actions: {actions.error}, waiting for next tick.")
+                return
+
             actions.sort()
-            list_actions(actions)
             while True:
-                idx = choose_action()
+                idx = await choose_action(actions)
                 if 0 <= idx < len(actions.options):
-                    handle_action(actions.options[idx])
-                    print(f"Chose action {actions.options[idx].skill}.")
-                    break
+                    try:
+                        new_action = sim.action_generator.sim_action_factory(self, actions.options[idx])
+                        print(f"Chose action {new_action.skill}.")
+                        self.action = new_action
+                        break  # break out of the while loop, so we tick the new action immediately.
+                    except Exception as e:
+                        print(f"Error creating action so waiting for next tick: {e}")
+                        return  # wait for the next tick.
                 else:
                     print(f"Invalid choice {idx}.")
 
+        # Tick the current action.
+        await self.tick_action(delta, sim)
+
 
 class Simulation:
-    def __init__(self):
+    def __init__(self, action_generator: 'ActionGenerator'):
         # The current time on the ship.
         self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
         # The crew on the ship.
@@ -86,10 +89,8 @@ class Simulation:
         self.locations: Dict[sim_models.EntityId, sim_models.Location] = {}
         # The interactable objects on the ship.
         self.interactable_objects: Dict[sim_models.EntityId, sim_models.InteractableObject] = {}
-        # A queue of action requests to process from SAGA.
-        self.actionsQueue: asyncio.Queue = asyncio.Queue()
-        # Create a saga agent for each persona.
-        self.saga_agent = fable_saga.Agent()
+        # The action generator to use to generate actions.
+        self.action_generator = action_generator
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -111,7 +112,7 @@ class Simulation:
         with open(path / 'resources/interactable_objects.yaml', 'r') as f:
             for obj_data in yaml.load(f, Loader=yaml.FullLoader):
                 obj = cattrs.structure(obj_data, sim_models.InteractableObject)
-                self.locations[obj.id()] = obj
+                self.interactable_objects[obj.id()] = obj
 
         with open(path / 'resources/skills.yaml', 'r') as f:
             skills = []
@@ -122,23 +123,31 @@ class Simulation:
 
     async def tick(self, delta: timedelta):
         """Tick the simulation to advance the current time and actions."""
-        self.sim_time += delta
         for agent in self.agents.values():
-            self.actionsQueue.put_nowait(agent.tick(delta, self))
+            await agent.tick(delta, self)
 
-    async def generate_actions(self, sim_agent: SimAgent, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
+        # Advance the simulation time itself once everything has been ticked.
+        self.sim_time += delta
+
+
+class ActionGenerator:
+
+    def __init__(self, saga_agent: fable_saga.Agent):
+        self.saga_agent = saga_agent
+
+    async def generate_action_options(self, sim: Simulation, sim_agent: SimAgent, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
         context = ""
         context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in self.agents.values()])}\n"
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
         context += "LOCATIONS: The following locations are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in self.locations.values()])}\n"
+                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
         context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, self.sim_time) for memory in sim_agent.memories])}\n"
+                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
         context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(obj) for obj in self.interactable_objects.values()])}\n"
+                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
 
         if sim_agent.persona is not None:
             context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
@@ -151,6 +160,23 @@ class Simulation:
 
         return await self.saga_agent.generate_actions(context, sim_agent.skills,
                                                       max_tries=retries, verbose=verbose, model_override=model_override)
+
+    @staticmethod
+    def sim_action_factory(sim_agent: SimAgent, action: fable_saga.Action):
+        """Handle the chosen action."""
+        from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
+        if action.skill == 'go_to':
+            return GoTo(sim_agent, action)
+        elif action.skill == 'interact':
+            return Interact(sim_agent, action)
+        elif action.skill == 'converse_with':
+            return ConverseWith(sim_agent, action)
+        elif action.skill == 'wait':
+            return Wait(sim_agent, action)
+        elif action.skill == 'reflect':
+            return Reflect(sim_agent, action)
+        else:
+            raise Exception(f"Unknown action {action.skill}.")
 
 
 class Format:
@@ -184,22 +210,26 @@ class Format:
         return f"{timestamp}: {action.summary()}"
 
 
-async def agent_worker(sim: Simulation):
-    """A worker that processes actions for each agent."""
-    while True:
-        agent_tick = await sim.actionsQueue.get()
-        await agent_tick
-        sim.actionsQueue.task_done()
-
-
 async def main():
     """The main entry point for the simulation."""
-    sim = Simulation()
+    sim: Simulation = Simulation(ActionGenerator(fable_saga.Agent()))
     sim.load()
+
+    async def list_actions(actions: fable_saga.GeneratedActions):
+        """List the actions byt printing to the console."""
+        for i, action in enumerate(actions.options):
+            output = f"#{i} -- {action.skill} ({actions.scores[i]})\n"
+            for key, value in action.parameters.items():
+                output += f"  {key}: {value}"
+            print(output)
+        return int(input("Choose an action: "))
+
+    for agent in sim.agents.values():
+        agent.choose_action_callback = list_actions
 
     keep_running = True
     while keep_running:
-        print ("====  SHIP TIME: " + str(sim.sim_time) + "  ====")
+        print("====  SHIP TIME: " + str(sim.sim_time) + "  ====")
         for agent in sim.agents.values():
             print(f"---- {agent.persona.id()} ----")
             print(f"  ROLE: {agent.persona.role}")
@@ -208,14 +238,6 @@ async def main():
             print("  MEMORIES:" + "".join(["\n  * " + Format.memory(m, sim.sim_time) for m in agent.memories]) + "\n")
 
         await sim.tick(timedelta(minutes=1))
-
-        # Create workers to process actions.
-        tasks = []
-        for i in range(len(sim.agents)):
-            tasks.append(asyncio.create_task(agent_worker(sim)))
-
-        # Wait until the queue is fully processed.
-        await sim.actionsQueue.join()
 
     print("Exiting")
     exit(0)
