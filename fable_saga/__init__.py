@@ -1,7 +1,7 @@
 import json
 import logging
-from typing import *
 import pathlib
+from typing import *
 
 import cattrs
 from attr import define
@@ -74,7 +74,7 @@ class SagaCallbackHandler(AsyncCallbackHandler):
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> Any:
         self.last_model_info = response.llm_output
         if len(response.generations) > 0:
-            #TODO: This is a hack to get the last generation. We should fix this in langchain.
+            # TODO: This is a hack to get the last generation. We should fix this in langchain.
             flat_generation = response.generations[0][0]
             if isinstance(flat_generation, Generation):
                 self.last_generation = flat_generation.text
@@ -105,6 +105,9 @@ class Agent:
     def chain(self, model_override: Optional[str] = None) -> LLMChain:
         self._llm.model_name = model_override if model_override else default_openai_model_name
         return LLMChain(llm=self._llm, prompt=self.prompt)
+
+    def generate_embedding(self, context: str) -> str:
+        return self._llm.generate_embedding(context)
 
     async def generate_actions(self, context: str, skills: List[Skill], max_tries=0, verbose=False, model_override: Optional[str] = None) -> GeneratedActions:
         """Generate actions for the given context and skills."""
@@ -159,4 +162,4 @@ class Agent:
         return GeneratedActions(options=[], scores=[], retries=retries, raw_response=callback_handler.last_generation,
                                 raw_prompt=callback_handler.last_prompt, llm_info=callback_handler.last_model_info,
                                 error=f"No options found after {retries} retries."
-                                                             f" Last error: {last_error}")
+                                      f" Last error: {last_error}")

@@ -1,48 +1,33 @@
+import base64
 import json
 import logging
-from typing import List, Optional
+import struct
+from typing import List, Optional, Type, Dict, Union
 
 import cattrs
-from attr import define
-from aiohttp import web, WSMsgType
 import socketio
-from cattrs import structure, unstructure
+from aiohttp import web, WSMsgType
+from attr import define
 from langchain.chat_models.base import BaseLanguageModel
 
 import fable_saga
+from fable_saga.embeddings import Document, EmbeddingAgent
 
 logger = logging.getLogger(__name__)
 
+# module level converter to convert between objects and dicts.
+converter = cattrs.Converter(forbid_extra_keys=True)
+
 """
 Sets up a server that can be used to generate actions for SAGA. Either HTTP or socketio can be used.
-
-For HTTP, make a POST request to the server with a JSON body of the following format:
-For socketio, send a message with the following format to the "generate-actions" event:
-{
-  "context": "You are a mouse",
-  "skills": [{
-    "name": "goto",
-    "description": "go somewhere",
-    "parameters": {
-      "location": "<str: where you want to go>"
-    }
-  }]
-}
-
-Response:
-
-
-
-
 """
-
 
 
 @define(slots=True)
 class ActionsRequest:
     """Request to generate actions."""
     context: str
-    skills: List[fable_saga.Skill] = {}
+    skills: List[fable_saga.Skill]
     retries: int = 0
     verbose: bool = False
     reference: Optional[str] = None
@@ -55,6 +40,59 @@ class ActionsResponse:
     actions: Optional[fable_saga.GeneratedActions] = None
     error: str = None
     reference: Optional[str] = None
+
+
+@define(slots=True)
+class EmbeddingsRequest:
+    """Request to generate embeddings."""
+    texts: List[str]
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class EmbeddingsResponse:
+    """Response from generating embeddings."""
+    embeddings: List[str] = []  # Actually list of List[float], but we pack 4 bytes per and then base64 encode them.
+    error: str = None
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class AddDocumentsRequest:
+    """Request to add documents."""
+    documents: List[Document]
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class AddDocumentsResponse:
+    """Response from adding documents."""
+    guids: List[str] = []
+    error: str = None
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class FindSimilarRequest:
+    """Request to find similar documents."""
+    query: str
+    k: int = 5
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class FindSimilarResponse:
+    """Response from finding similar documents."""
+    documents: List[Document] = []
+    scores: List[float] = []
+    error: str = None
+    reference: Optional[str] = None
+
+
+@define(slots=True)
+class ErrorResponse:
+    """Generic Error Response."""
+    error: str = None
 
 
 class SagaServer:
@@ -77,12 +115,79 @@ class SagaServer:
             return ActionsResponse(actions=None, error=str(e), reference=req.reference)
 
 
+class EmbeddingsServer:
+    """ Server for Embeddings. """
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.agent = EmbeddingAgent(**kwargs)
+
+    async def generate_embeddings(self, req: EmbeddingsRequest) -> EmbeddingsResponse:
+        # Generate embeddings
+        try:
+            assert isinstance(req, EmbeddingsRequest), f"Invalid request type: {type(req)}"
+            embeddings = await self.agent.embed_documents(req.texts)
+            packed_embeddings = [base64.b64encode(struct.pack('!%sf' % len(e), *e)).decode('ascii') for e in embeddings]
+            response = EmbeddingsResponse(embeddings=packed_embeddings, reference=req.reference)
+            return response
+        except Exception as e:
+            logger.error(str(e))
+            return EmbeddingsResponse(embeddings=[], error=str(e), reference=req.reference)
+
+    async def add_documents(self, req: AddDocumentsRequest) -> AddDocumentsResponse:
+        # Add documents
+        try:
+            assert isinstance(req, AddDocumentsRequest), f"Invalid request type: {type(req)}"
+            guids = await self.agent.store_documents(req.documents)
+            response = AddDocumentsResponse(guids=guids, reference=req.reference)
+            return response
+        except Exception as e:
+            logger.error(str(e))
+            return AddDocumentsResponse(guids=[], error=str(e), reference=req.reference)
+
+    async def find_similar(self, req: FindSimilarRequest) -> FindSimilarResponse:
+        # Find similar documents
+        try:
+            assert isinstance(req, FindSimilarRequest), f"Invalid request type: {type(req)}"
+            results = await self.agent.find_similar(req.query, req.k)
+            documents, scores = zip(*results)
+            response = FindSimilarResponse(documents=documents, scores=scores, reference=req.reference)
+            return response
+        except Exception as e:
+            logger.error(str(e))
+            return FindSimilarResponse(documents=[], scores=[], error=str(e), reference=req.reference)
+
+
+async def generic_handler(data: Union[str, Dict], request_type: Type, process_function, response_type: Type):
+    try:
+        if isinstance(data, str):
+            data = json.loads(data)
+        # noinspection PyTypeChecker
+        request = converter.structure(data, request_type)
+        result = await process_function(request)
+        assert isinstance(result, response_type), (f"Invalid response type: {type(result)},"
+                                                   f" expected instance of {response_type}")
+        response = converter.unstructure(result)
+        logger.debug(f"Response: {response}")
+        return response
+    except json.decoder.JSONDecodeError as e:
+        error = f"Error decoding JSON: {str(e)}"
+    except cattrs.errors.ClassValidationError as e:
+        error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+    except Exception as e:
+        error = f"Error processing request: {str(e)}"
+    logger.error(error)
+    response = response_type(error=error)
+    output = converter.unstructure(response)
+    return output
+
+
 if __name__ == '__main__':
 
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--type', type=str, required=True, help="Type of server to run.", choices=["socketio", "http", "websockets"])
+    parser.add_argument('--type', type=str, required=True, help="Type of server to run.",
+                        choices=["socketio", "http", "websockets"])
     parser.add_argument('--host', type=str, default='localhost', help='Host to listen on')
     parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
     parser.add_argument('--cors', type=str, default=None, help='CORS origin')
@@ -90,7 +195,9 @@ if __name__ == '__main__':
 
     # Create common server objects
     # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
-    server = SagaServer()
+    saga_server = SagaServer()
+    embeddings_server = EmbeddingsServer()
+
     app = web.Application()
 
     # Create socketio server
@@ -101,7 +208,7 @@ if __name__ == '__main__':
         sio.attach(app)
 
         @sio.event
-        def connect(sid, environ):
+        def connect(sid, _):
             logger.info("connect:" + sid)
 
         @sio.event
@@ -114,120 +221,133 @@ if __name__ == '__main__':
             logger.error(f"Unhandled event: {event} {sid} {data}")
 
         @sio.on('generate-actions')
-        async def generate_actions(sid, message_data: str):
-            logger.debug(f"Request from {sid}: {message_data}")
-            try:
-                data = json.loads(message_data)
-                request = structure(data, ActionsRequest)
-                actions = await server.generate_actions(request)
-                response = unstructure(actions)
-                logger.debug(f"Response: {response}")
-                return response
-            except cattrs.errors.ClassValidationError as e:
-                error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
-            except Exception as e:
-                error = str(e)
-            logger.error(error)
-            return unstructure(ActionsResponse(actions=None, error=error))
+        async def generate_actions(sid, message_str: str):
+            logger.debug(f"Request from {sid}: {message_str}")
+            return await generic_handler(message_str, ActionsRequest, saga_server.generate_actions,
+                                         ActionsResponse)
+
+        @sio.on('generate-embeddings')
+        async def generate_embeddings(sid, message_str: str):
+            logger.debug(f"Request from {sid}: {message_str}")
+            return await generic_handler(message_str, EmbeddingsRequest, embeddings_server.generate_embeddings,
+                                         EmbeddingsResponse)
+
+        @sio.on('add-documents')
+        async def add_documents(sid, message_str: str):
+            logger.debug(f"Request from {sid}: {message_str}")
+            return await generic_handler(message_str, AddDocumentsRequest, embeddings_server.add_documents,
+                                         AddDocumentsResponse)
+
+        @sio.on('find-similar')
+        async def find_similar(sid, message_str: str):
+            logger.debug(f"Request from {sid}: {message_str}")
+            return await generic_handler(message_str, FindSimilarRequest, embeddings_server.find_similar,
+                                         FindSimilarResponse)
 
     # Create HTTP server
     elif args.type == 'http':
         """HTTP server
-        Make a POST request to the server with a JSON body of the following format:
-        {
-          "type" : "generate-actions",
-          "data" : {
-            "context": "You are a mouse",
-            "skills": [{
-              "skill": "goto",
-              "parameters": {
-                "location": "<str: where you want to go>"
-              }
-            }]
-          }
-        }
-        
-        Response:
-        {
-          "options": [
-            {
-              "skill": "goto",
-              "parameters": {
-                "location": "cheese pantry"
-              }
-            },
-            ...
-          ],
-          "scores": [
-            0.8,
-            ...
-          ]
-        }
+        Make a POST request to the server with a JSON body message (See README.md for details).
         """
 
+        routes = web.RouteTableDef()
 
+        @routes.post('/generate-actions')
         async def generate_actions(request):
             """Handle POST requests to the server."""
-            logger.debug(f"Request : {request}")
-            params = await request.json()
-            try:
-                actions_req: ActionsRequest = structure(params, ActionsRequest)
-                actions_response = await server.generate_actions(actions_req)
-                response = unstructure(actions_response)
-                logger.debug(f"Response: {response}")
-                return web.json_response(response)
-            except cattrs.errors.ClassValidationError as e:
-                error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
-            except Exception as e:
-                error = str(e)
-            logger.error(error)
-            return web.json_response(unstructure(ActionsResponse(actions=None, error=error, reference=params.get('reference'))))
+            message_str = await request.text()
+            logger.debug(f"Request: {message_str}")
+            response = generic_handler(message_str, ActionsRequest, saga_server.generate_actions, ActionsResponse)
+            return web.json_response(response)
+
+
+        @routes.post('/generate-embeddings')
+        async def generate_embeddings(request):
+            """Handle POST requests to the server."""
+            message_str = await request.text()
+            logger.debug(f"Request: {message_str}")
+            response = generic_handler(message_str, EmbeddingsRequest, embeddings_server.generate_embeddings,
+                                       EmbeddingsResponse)
+            return web.json_response(response)
+
+        @routes.post('/add-documents')
+        async def add_documents(request):
+            """Handle POST requests to the server."""
+            message_str = await request.text()
+            logger.debug(f"Request: {message_str}")
+            response = generic_handler(message_str, AddDocumentsRequest, embeddings_server.add_documents,
+                                       AddDocumentsResponse)
+            return web.json_response(response)
+
+        @routes.post('/find-similar')
+        async def find_similar(request):
+            """Handle POST requests to the server."""
+            message_str = await request.text()
+            logger.debug(f"Request: {message_str}")
+            response = generic_handler(message_str, FindSimilarRequest, embeddings_server.find_similar,
+                                       FindSimilarResponse)
+            return web.json_response(response)
 
 
         # Listen for POST requests on the root path
         app.add_routes([web.post('/', generate_actions)])
 
     elif args.type == 'websockets':
+
+        from aiohttp import WSMessage
+
         async def websocket_handler(request):
             logger.info('Websocket connection starting')
             ws = web.WebSocketResponse()
             await ws.prepare(request)
             logger.info('Websocket connection ready')
 
-            async for msg in ws:
+            async for msg in ws:  # type: WSMessage
                 try:
                     if msg.type == WSMsgType.ERROR:
-                        print('ws connection closed with exception %s' %
-                        ws.exception())
+                        print('ws connection closed with exception %s' % ws.exception())
                     elif msg.type == WSMsgType.TEXT:
                         print(msg.data)
                         if msg.data == 'close':
                             await ws.close()
                         else:
-                            error = ""
-                            data = json.loads(msg.data)
                             try:
-                                actions_req: ActionsRequest = structure(data, ActionsRequest)
-                                actions_response = await server.generate_actions(actions_req)
-                                response = unstructure(actions_response)
-                                logger.debug(f"Response: {response}")
-                                await ws.send_json(response)
-                                continue
-                            except cattrs.errors.ClassValidationError as e:
-                                error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+                                data = json.loads(msg.data)
+                                request_type = data.get('request-type')
+                                request_data = data.get('request-data')
+
+                                if request_type == 'generate-actions':
+                                    response = await generic_handler(request_data, ActionsRequest,
+                                                                     saga_server.generate_actions,
+                                                                     ActionsResponse)
+                                elif request_type == 'generate-embeddings':
+                                    response = await generic_handler(request_data, EmbeddingsRequest,
+                                                                     embeddings_server.generate_embeddings,
+                                                                     EmbeddingsResponse)
+                                elif request_type == 'add-documents':
+                                    response = await generic_handler(request_data, AddDocumentsRequest,
+                                                                     embeddings_server.add_documents,
+                                                                     AddDocumentsResponse)
+                                elif request_type == 'find-similar':
+                                    response = await generic_handler(request_data, FindSimilarRequest,
+                                                                     embeddings_server.find_similar,
+                                                                     FindSimilarResponse)
+                                else:
+                                    error = f"Invalid request-type: {request_type}"
+                                    logger.error(error)
+                                    response = converter.unstructure(ErrorResponse(error=error))
                             except Exception as e:
-                                error = str(e)
-                            logger.error(error)
-                            await ws.send_json(
-                                unstructure(ActionsResponse(actions=None, error=error, reference=data.get('reference'))))
+                                logger.error(str(e))
+                                response = converter.unstructure(ErrorResponse(error=str(e)))
+                            await ws.send_json(response)
                 except Exception as e:
                     logger.error(str(e))
                     continue
             print('Websocket connection closed')
             return ws
 
-        app.router.add_route('GET', '/ws', websocket_handler)
-
+        # Use the root path for websocket connection.
+        app.router.add_route('GET', '/', websocket_handler)
 
     else:
         raise ValueError("Invalid server type: " + args.type)

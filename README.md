@@ -34,12 +34,12 @@ HTTP
 
 `python -m fable_saga.server --type http`
 
-The HTTP server is a REST API that accepts POST requests to the `/` endpoint. The body of the request should be a JSON
+The HTTP server is a REST API that accepts POST requests to the `/generate-actions` endpoint. The body of the request should be a JSON
 object with the skills and context defined. You can optionally pass a "reference" that will be returned as well.
 
 ```
 curl --request POST \
-  --url http://localhost:8080/ \
+  --url http://localhost:8080/generate-actions \
   --header 'content-type: application/json' \
   --data '{
   "reference": "1234",
@@ -111,19 +111,132 @@ Websockets
 `python -m fable_saga.server --type websockets`
 
 Very similar to socketio (which uses websockets as part of its protocol). Websockets alone misses some features of socketio but works in a very similar way.
-Simply connect to ws://127.0.0.1:8080/ws (by default) and send the same message and you will get a response.
+Simply connect to ws://127.0.0.1:8080 (by default) and wrap the json data in a request-type/request-data format, and you will get the same response.
+
+```Json
+{ "request-type": "generate-actions",
+  "request-data": {
+    "reference": 1234,
+    "context": "You are a mouse",
+    "skills": [{
+      "name": "goto",
+      "description": "go somewhere",
+    	"parameters": { 
+          "location": "<str: where you want to go>"
+      	}}]}}
+```
+
+Embeddings Server (in progress)
+-----------------
+
+There's now an embeddings server that can be used to generate embeddings for any text. This is useful if you want to use
+memories and the like in your context data, but don't want to send the entire text to the model. The embeddings server
+provides embeddings, but will also store documents and find similar documents based on the embedding of a query you
+provide. This is useful for finding similar memories, personas, etc.
+
+Right now, there is only a single index that uses sklearn's NearestNeighbors to find similar documents. This is not
+very scalable, but it's a good starting point and it uses OpenAI's embeddings, which are very good. Both can be swapped
+out for other systems supported by LangChain (see the `fable_saga.server` module for details).
+
+Also, right now there is only a single index, but it's possible to have multiple indexes soon, each with their own
+embeddings and similar documents. This is useful if you want to have different indexes for different types of
+documents, like personas, memories, etc or want to have different indexes for each character's memories.
+
+It runs off the same default server so the following endpoints are available (http, websockets and socketio) and follow
+the same pattern for communicating with each server type.
+
+### Generate Embeddings
+* http : `/generate-embeddings` - POST
+* socketio : `generate-embeddings` - event
+* websockets : `generate-embeddings` - request-type
+
+Returns embeddings for the text you pass in as a list of strings.
+The embeddings are returned as a list of lists of floats, but packed into a base64 string for transport.
+You can unpack them by first decoding the base64 string to bytes and then for each 4 bytes,
+unpack each them as a float (Big-Endian) and you will get the embeddings.
+We do this because the embeddings are very large (~1536 floats in the case of OpenAI's ada-2),
+so we want to avoid sending them directly as JSON.
+
+```Json
+ {
+    "reference": 1234,
+    "texts": ["Once upon a time"]
+}
+```
 
 ```Json
 {
-  "reference": 1234,
-  "context": "You are a mouse",
-  "skills": [{
-    "name": "goto",
-    "description": "go somewhere",
-  	"parameters": {
-      "location": "<str: where you want to go>"
-    }
+  "embeddings": [
+    "PK5P2bykyIS7lO/OvD4okLw3bR87AXcVOxYt+/RvIXQsTuB4SQ8EiPqvO91cjx6pQK8MMwyuq..."
+  ],
+  "error": null,
+  "reference": "1234"
+}
+```
+
+### Add Documents
+* http : `/add-documents` - POST
+* socketio : `add-documents` - event
+* websockets : `add-documents` - request-type
+
+Adds documents to the index. The documents are stored in the VectorStore and the index is updated with the new documents.
+The `text` field is required as that is what the embedding is based on, but you can add any other fields you want
+to the document's `metadata` field. Note that `metadata.id` field will be added to the metadata automatically on retrieval.
+The response includes the guids (ids) that are generated automatically by the VectorStore.
+
+```Json
+{
+  "documents": [ {
+    "text": "once upon a time",
+    "metadata": {"some data": "I want to get back later"}
   }]
+}
+```
+
+```Json
+{
+  "guids": [
+    "d08d6696-7f48-4d62-8161-0e8c779e264b"
+  ],
+  "error": null,
+  "reference": null
+}
+```
+
+### Find Similar
+* http : `/find-similar` - POST
+* socketio : `find-similar` - event
+* websockets : `find-similar` - request-type
+
+Finds similar documents to the query you pass in. The query is a text string and the response is a list of documents. 
+`k` is the number of similar documents to return. `k` must not be greater than the number of documents in the index.
+The `scores` by default are using the sklearn(langchain integration) default which as of this writing is:
+`score = 1 / exp(cosine_similarity - 1)`. This means that the scores ARE between 0 and 1, with 1 being the most similar,
+but a cosine_similarity of 0 results in a score of 0.37 and a cosine_similarity of -1 results in a score of 0.135.
+Expect to see many scores in the 0.8+ range when using the openAI embeddings no matter how different the documents are.
+
+```Json
+{
+  "query": "in the beginning",
+  "k": 1
+}
+```
+
+```Json
+{
+  "documents": [
+    {
+      "text": "once upon a time",
+      "metadata": {
+        "id": "b1e0e032-439d-4255-8bb5-a02e0f2745f5"
+      }
+    }
+  ],
+  "scores": [
+    0.8507239767422795
+  ],
+  "error": null,
+  "reference": null
 }
 ```
 
