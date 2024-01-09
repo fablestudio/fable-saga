@@ -137,10 +137,10 @@ class Agent:
                 last_response = await chain.arun(context=context, skills=json_skills, callbacks=[callback_handler])
                 raw_actions = json.loads(last_response)
                 # If we parse the results, but didn't get any options, retry. Should be rare.
-                if len(raw_actions.get('options', [])) == 0:
-                    print("No options found. Retrying.")
-                    retries += 1
-                    continue
+                if raw_actions.get('options') is None:
+                    raise Exception("No options key found in JSON response.")
+                if len(raw_actions['options']) == 0:
+                    raise Exception("options list is empty in JSON response.")
 
                 # Convert the options to a GeneratedActions object and add metadata.
                 actions = structure(raw_actions, GeneratedActions)

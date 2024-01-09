@@ -22,8 +22,7 @@ class SimAction:
         """Update the action's run time as a baseline."""
         if self.start_time is None:
             self.start_time = sim.sim_time
-        else:
-            self.run_time += delta
+        self.run_time += delta
 
     def complete(self):
         """Mark the action as complete by resetting the agent's action to None."""
@@ -62,8 +61,8 @@ class Interact(SimAction):
     """Interact with an object using a specific interaction."""
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
-        self.item_guid: EntityId = self.parameters.get('item_guid', None)
-        self.interaction: str = self.parameters.get('interaction', None)
+        self.item_guid: EntityId = self.parameters.get('item_guid')
+        self.interaction: str = self.parameters.get('interaction')
         self.goal: str = self.parameters.get('goal', 'None')
 
     def tick(self, delta: timedelta, sim: Simulation):
@@ -84,13 +83,13 @@ class Wait(SimAction):
         super().__init__(agent, action_data)
         self.duration: int = int(self.parameters.get('duration', 0))
         self.remaining_time: timedelta = timedelta(minutes=self.duration)
-        self.goal: str = self.parameters.get('goal', 0)
+        self.goal: str = self.parameters.get('goal', "")
 
     def tick(self, delta: timedelta, sim: Simulation):
         super().tick(delta, sim)
         self.remaining_time -= delta
         # Check if we have waited long enough.
-        if self.remaining_time.total_seconds() > 60:
+        if self.remaining_time.total_seconds() >= 60:
             return
         self.agent.memories.append(sim_models.Memory(summary=f"Waited for {self.duration}m at {self.agent.location.guid} with goal {self.goal}",
                                                      timestamp=sim.sim_time))

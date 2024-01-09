@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Any
 from attr import define
 
 EntityId = str
@@ -47,16 +47,7 @@ class InteractableObject(EntityInterface):
 
 
 @define(slots=True)
-class Skill(EntityInterface):
-    guid: EntityId
-    description: str
-    parameters: Dict[str, str]
-
-    def id(self) -> EntityId:
-        return self.guid
-
-
-@define(slots=True)
 class Memory:
     summary: str
     timestamp: datetime.datetime
+    metadata: Dict[str, Any] = {}
