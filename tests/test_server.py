@@ -8,26 +8,26 @@ from cattr import unstructure
 import fable_saga
 from fable_saga import server as saga_server
 from test_embeddings import fake_embedding_model, fake_documents
-from test_saga import fake_llm, fake_skills, fake_request
+from test_saga import fake_actions_llm, fake_skills, fake_actions_request, fake_conversation_llm, fake_conversation_request
 
 
 class TestSagaServer:
 
-    def test_init(self, fake_llm):
-        server = saga_server.SagaServer(llm=fake_llm)
-        assert server.agent._llm == fake_llm
+    def test_init(self, fake_actions_llm):
+        server = saga_server.SagaServer(llm=fake_actions_llm)
+        assert server.agent._llm == fake_actions_llm
 
     @pytest.mark.asyncio
-    async def test_generate_actions(self, fake_llm, fake_request):
-        server = saga_server.SagaServer(llm=fake_llm)
-        response = await server.generate_actions(fake_request)
+    async def test_generate_actions(self, fake_actions_llm, fake_actions_request):
+        server = saga_server.SagaServer(llm=fake_actions_llm)
+        response = await server.generate_actions(fake_actions_request)
 
         # The response is a valid ActionsResponse
         # Note: we don't throw exceptions in the server, but return the error in the response.
         assert response.error is None
 
         # The reference is the same as the request.
-        assert response.reference == fake_request.reference
+        assert response.reference == fake_actions_request.reference
 
         # Sanity check that the skills are the same in our fake_llm (test data ignores the requested skills here).
         assert isinstance(response.actions, fable_saga.GeneratedActions)
@@ -37,42 +37,65 @@ class TestSagaServer:
         assert options[1].skill == "skill_1"
 
     @pytest.mark.asyncio
-    async def test_no_skills_error(self, fake_llm, fake_request):
-        server = saga_server.SagaServer(llm=fake_llm)
+    async def test_generate_conversation(self, fake_conversation_llm, fake_conversation_request):
+        server = saga_server.SagaServer(llm=fake_conversation_llm)
+        response = await server.generate_conversation(fake_conversation_request)
+
+        # The response is a valid ActionsResponse
+        # Note: we don't throw exceptions in the server, but return the error in the response.
+        assert response.error is None
+
+        # The reference is the same as the request.
+        assert response.reference == fake_conversation_request.reference
+
+        # Sanity check that the skills are the same in our fake_llm (test data ignores the requested skills here).
+        assert isinstance(response.conversation, fable_saga.GeneratedConversation)
+
+        # Validate conversation data
+        conversation = response.conversation.conversation
+        assert len(conversation) == 2
+        assert conversation[0].persona_id == "person_a"
+        assert conversation[0].dialogue == "person_a_dialogue"
+        assert conversation[1].persona_id == "person_b"
+        assert conversation[1].dialogue == "person_b_dialogue"
+
+    @pytest.mark.asyncio
+    async def test_no_skills_error(self, fake_actions_llm, fake_actions_request):
+        server = saga_server.SagaServer(llm=fake_actions_llm)
 
         # Pass an empty list of skills should raise an error.
-        fake_request.skills = []
-        response = await server.generate_actions(fake_request)
+        fake_actions_request.skills = []
+        response = await server.generate_actions(fake_actions_request)
         assert response.error is not None
         assert response.actions is None
-        assert response.reference == fake_request.reference
+        assert response.reference == fake_actions_request.reference
 
         assert response.error == "Must provide at least one skill."
 
     @pytest.mark.asyncio
-    async def test_malformed_skills_error(self, fake_llm, fake_request):
-        server = saga_server.SagaServer(llm=fake_llm)
+    async def test_malformed_skills_error(self, fake_actions_llm, fake_actions_request):
+        server = saga_server.SagaServer(llm=fake_actions_llm)
 
         # Pass an empty list of skills should raise an error.
-        fake_request.skills = ["malformed"]
-        response = await server.generate_actions(fake_request)
+        fake_actions_request.skills = ["malformed"]
+        response = await server.generate_actions(fake_actions_request)
         assert response.error is not None
         assert response.actions is None
-        assert response.reference == fake_request.reference
+        assert response.reference == fake_actions_request.reference
 
         assert response.error == "Must provide a list of Skill objects."
 
     @pytest.mark.asyncio
-    async def test_malformed_response_error(self, fake_llm, fake_request):
-        fake_llm.responses = ["malformed"]
-        server = saga_server.SagaServer(llm=fake_llm)
+    async def test_malformed_response_error(self, fake_actions_llm, fake_actions_request):
+        fake_actions_llm.responses = ["malformed"]
+        server = saga_server.SagaServer(llm=fake_actions_llm)
 
         # A malformed response should raise an error.
-        response = await server.generate_actions(fake_request)
+        response = await server.generate_actions(fake_actions_request)
         assert response.actions is not None
         assert response.actions.error == ("No options found after 1 retries. Last error: Error decoding response:"
                                           " Expecting value: line 1 column 1 (char 0)")
-        assert response.reference == fake_request.reference
+        assert response.reference == fake_actions_request.reference
         assert response.error is not None
 
 
@@ -226,7 +249,7 @@ class TestGenericHandler:
         assert response['reference'] is None
 
     @pytest.mark.asyncio
-    async def test_find_simliar(self, fake_documents):
+    async def test_find_similar(self, fake_documents):
         fake_data = {"query": "test", "k": 2}
         expected_request = saga_server.FindSimilarRequest(query="test", k=2)
 

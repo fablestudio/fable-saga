@@ -43,6 +43,25 @@ class ActionsResponse:
 
 
 @define(slots=True)
+class ConversationRequest:
+    """Request to generate a conversation."""
+    context: str
+    persona_ids: List[str]
+    retries: int = 0
+    verbose: bool = False
+    reference: Optional[str] = None
+    model: Optional[str] = None
+
+
+@define(slots=True)
+class ConversationResponse:
+    """Response from generating a conversation."""
+    conversation: Optional[fable_saga.GeneratedConversation] = None
+    error: str = None
+    reference: Optional[str] = None
+
+
+@define(slots=True)
 class EmbeddingsRequest:
     """Request to generate embeddings."""
     texts: List[str]
@@ -113,6 +132,19 @@ class SagaServer:
         except Exception as e:
             logger.error(str(e))
             return ActionsResponse(actions=None, error=str(e), reference=req.reference)
+
+    async def generate_conversation(self, req: ConversationRequest) -> ConversationResponse:
+        # Generate conversation
+        try:
+            assert isinstance(req, ConversationRequest), f"Invalid request type: {type(req)}"
+            conversation = await self.agent.generate_conversation(req.persona_ids, req.context, req.retries, req.verbose, req.model)
+            response = ConversationResponse(conversation=conversation, reference=req.reference)
+            if conversation.error is not None:
+                response.error = f"Generation Error: {conversation.error}"
+            return response
+        except Exception as e:
+            logger.error(str(e))
+            return ConversationResponse(conversation=None, error=str(e), reference=req.reference)
 
 
 class EmbeddingsServer:
@@ -226,6 +258,12 @@ if __name__ == '__main__':
             return await generic_handler(message_str, ActionsRequest, saga_server.generate_actions,
                                          ActionsResponse)
 
+        @sio.on('generate-conversation')
+        async def generate_conversation(sid, message_str: str):
+            logger.debug(f"Request from {sid}: {message_str}")
+            return await generic_handler(message_str, ConversationRequest, saga_server.generate_conversation,
+                                         ConversationResponse)
+
         @sio.on('generate-embeddings')
         async def generate_embeddings(sid, message_str: str):
             logger.debug(f"Request from {sid}: {message_str}")
@@ -260,6 +298,13 @@ if __name__ == '__main__':
             response = generic_handler(message_str, ActionsRequest, saga_server.generate_actions, ActionsResponse)
             return web.json_response(response)
 
+        @routes.post('/generate-conversation')
+        async def generate_conversation(request):
+            """Handle POST requests to the server."""
+            message_str = await request.text()
+            logger.debug(f"Request: {message_str}")
+            response = generic_handler(message_str, ConversationRequest, saga_server.generate_conversation, ConversationResponse)
+            return web.json_response(response)
 
         @routes.post('/generate-embeddings')
         async def generate_embeddings(request):
@@ -287,7 +332,6 @@ if __name__ == '__main__':
             response = generic_handler(message_str, FindSimilarRequest, embeddings_server.find_similar,
                                        FindSimilarResponse)
             return web.json_response(response)
-
 
         # Listen for POST requests on the root path
         app.add_routes([web.post('/', generate_actions)])
