@@ -113,8 +113,8 @@ class TestSagaAgent:
         chain = agent.generate_conversation_chain()
         assert chain.llm == fake_conversation_llm
         assert chain.prompt == agent.generate_conversation_prompt
-        assert "Generate a conversation between characters with the following identifiers" in chain.prompt.template
-        assert chain.prompt.input_variables == ["context", "personas"]
+        assert "Generate a conversation by writing lines of dialogue" in chain.prompt.template
+        assert chain.prompt.input_variables == ["context", "persona_guids"]
 
     @pytest.mark.asyncio
     async def test_generate_conversation(self, fake_conversation_llm):
@@ -126,7 +126,7 @@ class TestSagaAgent:
         test_model = 'test_model'
         assert fake_conversation_llm.model_name != test_model
 
-        response = await agent.generate_conversation(["person_a", "person_b"], "context", model_override=test_model)
+        response = await agent.generate_conversation(["person_a", "person_b"], "test_context", model_override=test_model)
         assert isinstance(response, fable_saga.GeneratedConversation)
 
         # Should be using the test model
@@ -141,7 +141,7 @@ class TestSagaAgent:
 
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
-        assert response.raw_prompt.startswith("Human: Generate a conversation between characters with the following identifiers")
+        assert response.raw_prompt.startswith("Human: test_context")
 
     @pytest.mark.asyncio
     async def test_generate_conversation_retries(self, fake_conversation_llm):

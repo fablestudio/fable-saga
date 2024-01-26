@@ -89,8 +89,9 @@ class Simulation:
         self.locations: Dict[sim_models.EntityId, sim_models.Location] = {}
         # The interactable objects on the ship.
         self.interactable_objects: Dict[sim_models.EntityId, sim_models.InteractableObject] = {}
-        # The action generator to use to generate actions.
+        # The generator used to create action options.
         self.action_generator = action_generator
+        # The generator used to create conversations.
         self.conversation_generator = conversation_generator
 
     def load(self):
@@ -190,7 +191,7 @@ class ConversationGenerator:
         Note that saga_agent.generate_conversation can support more than 2 agents, but we limit this here for simplicity"""
 
         if sim_agent.persona is None or other_agent_id is None:
-            print("Error: generate_conversation requires a valid sim_agent and other_agent_id")0
+            print("Error: generate_conversation requires a valid sim_agent and other_agent_id")
             return
 
         print(f"Generating conversation between {sim_agent.persona.id()} and {other_agent_id}...")

@@ -6,19 +6,19 @@ from unittest.mock import Mock
 
 import fable_saga
 from demos.space_colony import simulation
-from demos.space_colony.simulation import ActionGenerator
-from test_saga import fake_actions_llm, FakeChatOpenAI
+from demos.space_colony.simulation import ActionGenerator, ConversationGenerator
+from test_saga import fake_actions_llm, fake_conversation_llm, FakeChatOpenAI
 
 
 class TestSimulation:
 
-    def test_simulation_init(self, fake_actions_llm):
-        sim = simulation.Simulation(ActionGenerator(fake_actions_llm))
+    def test_simulation_init(self, fake_actions_llm, fake_conversation_llm):
+        sim = simulation.Simulation(ActionGenerator(fake_actions_llm), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         assert sim is not None
         assert sim.sim_time == datetime.datetime(2060, 1, 1, 8, 0)
 
-    def test_simulation_load_agents(self, fake_actions_llm):
-        sim = simulation.Simulation(ActionGenerator(fake_actions_llm))
+    def test_simulation_load_agents(self, fake_actions_llm, fake_conversation_llm):
+        sim = simulation.Simulation(ActionGenerator(fake_actions_llm), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         sim.load()
 
         # Check that the simulation sim_agents are initialized correctly.
@@ -31,8 +31,8 @@ class TestSimulation:
         assert "Diplomatic yet assertive" in captain.persona.personality
         assert "Captain" in captain.persona.role
 
-    def test_simulation_load_skills(self, fake_actions_llm):
-        sim = simulation.Simulation(ActionGenerator(fake_actions_llm))
+    def test_simulation_load_skills(self, fake_actions_llm, fake_conversation_llm):
+        sim = simulation.Simulation(ActionGenerator(fake_actions_llm), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         sim.load()
 
         # Check that the skills are initialized correctly.
@@ -41,8 +41,8 @@ class TestSimulation:
         assert captain.skills[0].name == "go_to"
         assert list(captain.skills[0].parameters.keys()) == ['destination', 'goal']
 
-    def test_simulation_load_locations(self, fake_actions_llm):
-        sim = simulation.Simulation(ActionGenerator(fake_actions_llm))
+    def test_simulation_load_locations(self, fake_actions_llm, fake_conversation_llm):
+        sim = simulation.Simulation(ActionGenerator(fake_actions_llm), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         sim.load()
 
         # Check that the locations are initialized correctly.
@@ -52,8 +52,8 @@ class TestSimulation:
         assert "the heart of the ship" in engine_room.description
         assert engine_room.guid == "engine_room"
 
-    def test_simulation_load_objects(self, fake_actions_llm):
-        sim = simulation.Simulation(ActionGenerator(fake_actions_llm))
+    def test_simulation_load_objects(self, fake_actions_llm, fake_conversation_llm):
+        sim = simulation.Simulation(ActionGenerator(fake_actions_llm), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         sim.load()
 
         # Check that the interactable objects are initialized correctly.
@@ -63,7 +63,7 @@ class TestSimulation:
         assert engine.affordances == ['sit', 'access_ship_logs', 'issue_commands']
 
     @pytest.mark.asyncio
-    async def test_simulation_tick(self):
+    async def test_simulation_tick(self, fake_conversation_llm):
 
         goto_bridge_llm = FakeChatOpenAI(responses=[
             """{"options": [
@@ -73,7 +73,7 @@ class TestSimulation:
             "scores": [0.9, 0.1]}"""
         ])
 
-        sim = simulation.Simulation(ActionGenerator(fable_saga.Agent(goto_bridge_llm)))
+        sim = simulation.Simulation(ActionGenerator(fable_saga.Agent(goto_bridge_llm)), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         for agent in sim.agents.values():
             mock = Mock()
             agent.tick = mock
@@ -87,7 +87,7 @@ class TestSimulation:
         assert sim.sim_time == datetime.datetime(2060, 1, 1, 8, 0, 59)
 
     @pytest.mark.asyncio
-    async def test_go_to(self):
+    async def test_go_to(self, fake_conversation_llm):
 
         goto_bridge_llm = FakeChatOpenAI(responses=[
             """{"options": [
@@ -97,7 +97,7 @@ class TestSimulation:
             "scores": [0.9, 0.1]}"""
         ])
 
-        sim = simulation.Simulation(ActionGenerator(fable_saga.Agent(goto_bridge_llm)))
+        sim = simulation.Simulation(ActionGenerator(fable_saga.Agent(goto_bridge_llm)), ConversationGenerator(fable_saga.Agent(fake_conversation_llm)))
         sim.load()
 
         await sim.tick(datetime.timedelta(seconds=30))
