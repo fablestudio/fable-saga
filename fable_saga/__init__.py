@@ -53,7 +53,7 @@ class GeneratedActions:
 
 @define(slots=True)
 class ConversationTurn:
-    persona_id: str
+    persona_guid: str
     dialogue: str
 
 
@@ -185,9 +185,9 @@ class Agent:
                                 error=f"No options found after {retries} retries."
                                       f" Last error: {last_error}")
 
-    async def generate_conversation(self, persona_ids: List[str], context: str, max_tries=0, verbose=False, model_override: Optional[str] = None):
+    async def generate_conversation(self, persona_guids: List[str], context: str, max_tries=0, verbose=False, model_override: Optional[str] = None):
         """Generate conversation for the given personas and context"""
-        assert persona_ids is not None and len(persona_ids) > 0, "Must provide at least one persona_id."
+        assert persona_guids is not None and len(persona_guids) > 0, "Must provide at least one persona_guid."
         assert context is not None and len(context) > 0, "Must provide a context."
 
         chain = self.generate_conversation_chain(model_override)
@@ -201,11 +201,11 @@ class Agent:
 
         retries = 0
         last_error = None
-        formatted_personas = '[' + ', '.join(persona_ids) + ']'
+        formatted_persona_guids = '[' + ', '.join(persona_guids) + ']'
 
         while retries <= max_tries:
             try:
-                last_response = await chain.arun(context=context, personas=formatted_personas, callbacks=[callback_handler])
+                last_response = await chain.arun(context=context, persona_guids=formatted_persona_guids, callbacks=[callback_handler])
                 raw_conversation = json.loads(last_response)
                 # If we parse the results, but didn't get any options, retry. Should be rare.
                 if raw_conversation.get('conversation') is None:

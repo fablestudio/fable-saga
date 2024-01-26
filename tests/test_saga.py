@@ -134,9 +134,9 @@ class TestSagaAgent:
 
         # Validate conversation output
         assert len(response.conversation) == 2
-        assert response.conversation[0].persona_id == "person_a"
+        assert response.conversation[0].persona_guid == "person_a"
         assert response.conversation[0].dialogue == "person_a_dialogue"
-        assert response.conversation[1].persona_id == "person_b"
+        assert response.conversation[1].persona_guid == "person_b"
         assert response.conversation[1].dialogue == "person_b_dialogue"
 
         # Check that the prompt starts with the right text.
