@@ -1,0 +1,14 @@
+[
+  {
+    "conversation": [
+      {
+        "persona_id": "person_a",
+        "dialogue": "person_a_dialogue"
+      },
+      {
+        "persona_id": "person_b",
+        "dialogue": "person_b_dialogue"
+      }
+    ]
+  }
+]

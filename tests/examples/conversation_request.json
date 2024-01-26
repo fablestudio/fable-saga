@@ -1,0 +1,6 @@
+{
+  "reference": "asdfasfasdf",
+  "persona_ids": ["person_a", "person_b"],
+  "context": "These characters are fighting",
+  "model": "test_model"
+}
