@@ -40,7 +40,7 @@ class SimAgent:
         """Tick the current action to advance and/or complete it."""
         if self.action is None:
             return
-        self.action.tick(delta, sim)
+        await self.action.tick(delta, sim)
 
     async def tick(self, delta: timedelta, sim: 'Simulation'):
         """Tick the agent to advance its current action or choose a new one."""
@@ -80,7 +80,7 @@ class SimAgent:
 
 
 class Simulation:
-    def __init__(self, action_generator: 'ActionGenerator'):
+    def __init__(self, action_generator: 'ActionGenerator', conversation_generator: 'ConversationGenerator'):
         # The current time on the ship.
         self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
         # The crew on the ship.
@@ -89,8 +89,10 @@ class Simulation:
         self.locations: Dict[sim_models.EntityId, sim_models.Location] = {}
         # The interactable objects on the ship.
         self.interactable_objects: Dict[sim_models.EntityId, sim_models.InteractableObject] = {}
-        # The action generator to use to generate actions.
+        # The generator used to create action options.
         self.action_generator = action_generator
+        # The generator used to create conversations.
+        self.conversation_generator = conversation_generator
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -179,6 +181,36 @@ class ActionGenerator:
             raise Exception(f"Unknown action {action.skill}.")
 
 
+class ConversationGenerator:
+
+    def __init__(self, saga_agent: fable_saga.Agent):
+        self.saga_agent = saga_agent
+
+    async def generate_conversation(self, sim: Simulation, sim_agent: SimAgent, other_agent_id: str, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
+        """Generate a conversation between sim_agent and other_agent.
+        Note that saga_agent.generate_conversation can support more than 2 agents, but we limit this here for simplicity"""
+
+        if sim_agent.persona is None or other_agent_id is None:
+            print("Error: generate_conversation requires a valid sim_agent and other_agent_id")
+            return
+
+        print(f"Generating conversation between {sim_agent.persona.id()} and {other_agent_id}...")
+        context = ""
+        context += (f"You are a character named {sim_agent.persona.id()} in a story about the crew of the spaceship"
+                    f" \"Stellar Runner\" that is travelling to a space colony on one of Jupiter's moons to deliver"
+                    f" supplies. It's still 30 days before you reach your destination\n")
+        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
+        context += "MEMORIES: The following memories are available:\n" \
+                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
+
+        if sim_agent.location is not None:
+            context += f"Your location is {sim_agent.location.id()}.\n"
+
+        return await self.saga_agent.generate_conversation([sim_agent.persona.id(), other_agent_id], context,
+                                                           max_tries=retries, verbose=verbose, model_override=model_override)
+
+
 class Format:
     """A set of methods to format simulation data for printing to the console and to the SAGA context."""
     @staticmethod
@@ -212,7 +244,7 @@ class Format:
 
 async def main():
     """The main entry point for the simulation."""
-    sim: Simulation = Simulation(ActionGenerator(fable_saga.Agent()))
+    sim: Simulation = Simulation(ActionGenerator(fable_saga.Agent()), ConversationGenerator(fable_saga.Agent()))
     sim.load()
 
     async def list_actions(actions: fable_saga.GeneratedActions):

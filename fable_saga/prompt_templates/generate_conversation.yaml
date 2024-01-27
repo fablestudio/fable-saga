@@ -1,14 +1,12 @@
 _type: prompt
 input_variables:
-    ["context", "personas"]
+    ["context", "persona_guids"]
 template: |
-    Generate a conversation between characters with the following identifiers:
-    {personas}
-
     {context}
     
-    Generate a conversation by writing lines of dialogue for each character. Only generate valid JSON.
+    Generate a conversation by writing lines of dialogue between the following character(s): {persona_guids}
+    Only generate valid JSON.
     Use the following JSON format to construct the conversation:
             {{"conversation": [
-                {{"persona_id": <str: identifier of the speaking character>, "dialogue": <str: the line of dialogue spoken>
+                {{"persona_guid": <str: identifier of the speaking character>, "dialogue": <str: the line of dialogue spoken>
             ]}}

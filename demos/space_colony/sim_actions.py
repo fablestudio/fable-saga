@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Dict, Any
 
@@ -18,7 +19,7 @@ class SimAction:
         self.run_time = timedelta()
         self.end_time = None
 
-    def tick(self, delta: timedelta, sim: Simulation):
+    async def tick(self, delta: timedelta, sim: Simulation):
         """Update the action's run time as a baseline."""
         if self.start_time is None:
             self.start_time = sim.sim_time
@@ -43,8 +44,8 @@ class GoTo(SimAction):
         self.destination: EntityId = self.parameters.get('destination', "")
         self.goal: str = self.parameters.get('goal', "None")
 
-    def tick(self, delta: timedelta, sim: Simulation):
-        super().tick(delta, sim)
+    async def tick(self, delta: timedelta, sim: Simulation):
+        await super().tick(delta, sim)
         # Assume it takes one minute to move to the next location.
         if self.run_time.total_seconds() < 60:
             return
@@ -65,8 +66,8 @@ class Interact(SimAction):
         self.interaction: str = self.parameters.get('interaction')
         self.goal: str = self.parameters.get('goal', 'None')
 
-    def tick(self, delta: timedelta, sim: Simulation):
-        super().tick(delta, sim)
+    async def tick(self, delta: timedelta, sim: Simulation):
+        await super().tick(delta, sim)
         # Assume it takes one minute to interact with an object.
         if self.run_time.total_seconds() < 60:
             return
@@ -85,8 +86,8 @@ class Wait(SimAction):
         self.remaining_time: timedelta = timedelta(minutes=self.duration)
         self.goal: str = self.parameters.get('goal', "")
 
-    def tick(self, delta: timedelta, sim: Simulation):
-        super().tick(delta, sim)
+    async def tick(self, delta: timedelta, sim: Simulation):
+        await super().tick(delta, sim)
         self.remaining_time -= delta
         # Check if we have waited long enough.
         if self.remaining_time.total_seconds() >= 60:
@@ -106,8 +107,8 @@ class Reflect(SimAction):
         self.result: str = self.parameters.get('result', "")
         self.goal: str = self.parameters.get('goal', "")
 
-    def tick(self, delta: timedelta, sim: Simulation):
-        super().tick(delta, sim)
+    async def tick(self, delta: timedelta, sim: Simulation):
+        await super().tick(delta, sim)
         # Assume it takes one minute to reflect on something.
         if self.run_time.total_seconds() < 60:
             return
@@ -124,22 +125,32 @@ class ConverseWith(SimAction):
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
 
-        self.persona_guid = self.parameters['persona_guid']
+        self.persona_guid = self.parameters['persona_guid']  # The other person to speak with
         self.topic = self.parameters['topic']
         self.context = self.parameters['context']
         self.goal = self.parameters.get('goal', "")  # sometimes goal doesn't get generated, so default to empty string.
 
-    def tick(self, delta: timedelta, sim: Simulation):
-        super().tick(delta, sim)
-        # Assume it takes one minute to converse with someone.
-        if self.run_time.total_seconds() < 60:
-            return
-        self.agent.memories.append(sim_models.Memory(summary=f"Conversed with {self.persona_guid} on {self.topic} "
-                                                             f"at {self.agent.location.guid} with goal {self.goal}",
-                                                     timestamp=sim.sim_time))
-        sim.agents[self.persona_guid].memories.append(sim_models.Memory(summary=f"Conversed with {self.agent.persona.id()} on {self.topic} "
-                                                             f"at {self.agent.location.guid}",
-                                                                        timestamp=sim.sim_time))
-        self.end_time = sim.sim_time
-        print(f"{self.agent.persona.id()} conversed with {self.persona_guid} on {self.topic}.")
+    async def tick(self, delta: timedelta, sim: Simulation):
+        await super().tick(delta, sim)
+
+        # Generate and format the conversation into a memory
+        generated_conversation = await sim.conversation_generator.generate_conversation(sim, self.agent, self.persona_guid)
+        if generated_conversation.error is None:
+            conversation_formatted = "Dialogue:\n"
+            for turn in generated_conversation.conversation:
+                conversation_formatted += f"\t{turn.persona_guid}: {turn.dialogue}\n"
+
+            self.agent.memories.append(sim_models.Memory(
+                summary=f"Conversed with {self.persona_guid} on {self.topic} "
+                        f"at {self.agent.location.guid} with goal {self.goal}. "
+                        f"{conversation_formatted}", timestamp=sim.sim_time))
+            sim.agents[self.persona_guid].memories.append(sim_models.Memory(
+                summary=f"Conversed with {self.agent.persona.id()} "
+                        f"on {self.topic}. {conversation_formatted}"
+                        f"at {self.agent.location.guid}", timestamp=sim.sim_time))
+            self.end_time = sim.sim_time
+            print(f"{self.agent.persona.id()} conversed with {self.persona_guid} on {self.topic}.\n{conversation_formatted}")
+        else:
+            print(f"Failed to generate conversation: {generated_conversation.error}")
+
         self.complete()

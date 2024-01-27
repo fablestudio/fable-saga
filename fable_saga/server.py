@@ -46,7 +46,7 @@ class ActionsResponse:
 class ConversationRequest:
     """Request to generate a conversation."""
     context: str
-    persona_ids: List[str]
+    persona_guids: List[str]
     retries: int = 0
     verbose: bool = False
     reference: Optional[str] = None
@@ -137,7 +137,7 @@ class SagaServer:
         # Generate conversation
         try:
             assert isinstance(req, ConversationRequest), f"Invalid request type: {type(req)}"
-            conversation = await self.agent.generate_conversation(req.persona_ids, req.context, req.retries, req.verbose, req.model)
+            conversation = await self.agent.generate_conversation(req.persona_guids, req.context, req.retries, req.verbose, req.model)
             response = ConversationResponse(conversation=conversation, reference=req.reference)
             if conversation.error is not None:
                 response.error = f"Generation Error: {conversation.error}"
