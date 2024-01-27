@@ -268,7 +268,16 @@ async def main():
             for key, value in action.parameters.items():
                 output += f"  {key}: {value}"
             print(output)
-        return int(input("Choose an action: "))
+        value = input("Choose an action: ")
+        if value == "" or value is None:
+            return 0
+        while True:
+            try:
+                assert 0 <= int(value) < len(actions.options)
+                return int(value)
+            except (ValueError, AssertionError) as e:
+                print(f"Invalid choice {value}: {e}.")
+                value = input("Choose an action: ")
 
     for agent in sim.agents.values():
         agent.choose_action_callback = list_actions
