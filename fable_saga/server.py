@@ -12,6 +12,7 @@ from langchain.chat_models.base import BaseLanguageModel
 
 import fable_saga
 from fable_saga.embeddings import Document, EmbeddingAgent
+from fable_saga.conversations import GeneratedConversation, ConversationAgent
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class ConversationRequest:
 @define(slots=True)
 class ConversationResponse:
     """Response from generating a conversation."""
-    conversation: Optional[fable_saga.GeneratedConversation] = None
+    conversation: Optional[GeneratedConversation] = None
     error: str = None
     reference: Optional[str] = None
 
@@ -118,7 +119,7 @@ class SagaServer:
     """ Server for SAGA. """
     def __init__(self, llm: BaseLanguageModel = None):
         super().__init__()
-        self.agent = fable_saga.Agent(llm)
+        self.agent = fable_saga.SagaAgent(llm)
 
     async def generate_actions(self, req: ActionsRequest) -> ActionsResponse:
         # Generate actions
@@ -133,11 +134,18 @@ class SagaServer:
             logger.error(str(e))
             return ActionsResponse(actions=None, error=str(e), reference=req.reference)
 
+
+class ConversationServer:
+    def __init__(self, llm: BaseLanguageModel = None):
+        super().__init__()
+        self.agent = ConversationAgent(llm)
+
     async def generate_conversation(self, req: ConversationRequest) -> ConversationResponse:
         # Generate conversation
         try:
             assert isinstance(req, ConversationRequest), f"Invalid request type: {type(req)}"
-            conversation = await self.agent.generate_conversation(req.persona_guids, req.context, req.retries, req.verbose, req.model)
+            conversation = await self.agent.generate_conversation(req.persona_guids, req.context, req.retries,
+                                                                  req.verbose, req.model)
             response = ConversationResponse(conversation=conversation, reference=req.reference)
             if conversation.error is not None:
                 response.error = f"Generation Error: {conversation.error}"
@@ -229,6 +237,7 @@ if __name__ == '__main__':
     # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
     saga_server = SagaServer()
     embeddings_server = EmbeddingsServer()
+    conversation_server = ConversationServer()
 
     app = web.Application()
 
@@ -261,7 +270,7 @@ if __name__ == '__main__':
         @sio.on('generate-conversation')
         async def generate_conversation(sid, message_str: str):
             logger.debug(f"Request from {sid}: {message_str}")
-            return await generic_handler(message_str, ConversationRequest, saga_server.generate_conversation,
+            return await generic_handler(message_str, ConversationRequest, conversation_server.generate_conversation,
                                          ConversationResponse)
 
         @sio.on('generate-embeddings')
@@ -303,7 +312,8 @@ if __name__ == '__main__':
             """Handle POST requests to the server."""
             message_str = await request.text()
             logger.debug(f"Request: {message_str}")
-            response = generic_handler(message_str, ConversationRequest, saga_server.generate_conversation, ConversationResponse)
+            response = generic_handler(message_str, ConversationRequest, conversation_server.generate_conversation,
+                                       ConversationResponse)
             return web.json_response(response)
 
         @routes.post('/generate-embeddings')
@@ -364,6 +374,10 @@ if __name__ == '__main__':
                                     response = await generic_handler(request_data, ActionsRequest,
                                                                      saga_server.generate_actions,
                                                                      ActionsResponse)
+                                elif request_type == 'generate-conversation':
+                                    response = await generic_handler(request_data, ConversationRequest,
+                                                                     conversation_server.generate_conversation,
+                                                                     ConversationResponse)
                                 elif request_type == 'generate-embeddings':
                                     response = await generic_handler(request_data, EmbeddingsRequest,
                                                                      embeddings_server.generate_embeddings,

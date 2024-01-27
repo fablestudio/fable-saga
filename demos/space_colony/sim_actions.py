@@ -1,11 +1,15 @@
-import asyncio
+from __future__ import annotations
+
 from datetime import timedelta
+import typing
 from typing import Dict, Any
 
 import fable_saga
 from demos.space_colony import sim_models
-from demos.space_colony.simulation import SimAgent, Simulation
 from demos.space_colony.sim_models import EntityId
+
+if typing.TYPE_CHECKING:
+    from demos.space_colony.simulation import Simulation, SimAgent
 
 
 class SimAction:
@@ -51,7 +55,8 @@ class GoTo(SimAction):
             return
         previous_location = self.agent.location.guid
         self.agent.location = sim.locations[EntityId(self.destination)]
-        self.agent.memories.append(sim_models.Memory(summary=f"Moved from {previous_location} to {self.destination} with goal {self.goal}",
+        self.agent.memories.append(sim_models.Memory(summary=f"Moved from {previous_location} to {self.destination} "
+                                                             f"with goal {self.goal}",
                                                      timestamp=sim.sim_time))
         self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} moved to {self.destination}.")
@@ -71,7 +76,8 @@ class Interact(SimAction):
         # Assume it takes one minute to interact with an object.
         if self.run_time.total_seconds() < 60:
             return
-        self.agent.memories.append(sim_models.Memory(summary=f"Interacted with {self.item_guid} via {self.interaction} at {self.agent.location.guid} with goal {self.goal}",
+        self.agent.memories.append(sim_models.Memory(summary=f"Interacted with {self.item_guid} via {self.interaction}"
+                                                             f" at {self.agent.location.guid} with goal {self.goal}",
                                                      timestamp=sim.sim_time))
         self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} interacted with {self.item_guid}.")
@@ -92,7 +98,9 @@ class Wait(SimAction):
         # Check if we have waited long enough.
         if self.remaining_time.total_seconds() >= 60:
             return
-        self.agent.memories.append(sim_models.Memory(summary=f"Waited for {self.duration}m at {self.agent.location.guid} with goal {self.goal}",
+        self.agent.memories.append(sim_models.Memory(summary=f"Waited for {self.duration}m "
+                                                             f"at {self.agent.location.guid} "
+                                                             f"with goal {self.goal}",
                                                      timestamp=sim.sim_time))
         self.end_time = sim.sim_time
         print(f"{self.agent.persona.id()} waited for {self.duration}.")
@@ -134,7 +142,8 @@ class ConverseWith(SimAction):
         await super().tick(delta, sim)
 
         # Generate and format the conversation into a memory
-        generated_conversation = await sim.conversation_generator.generate_conversation(sim, self.agent, self.persona_guid)
+        generated_conversation = await sim.conversation_generator.generate_conversation(sim, self.agent,
+                                                                                        self.persona_guid)
         if generated_conversation.error is None:
             conversation_formatted = "Dialogue:\n"
             for turn in generated_conversation.conversation:
@@ -149,7 +158,8 @@ class ConverseWith(SimAction):
                         f"on {self.topic}. {conversation_formatted}"
                         f"at {self.agent.location.guid}", timestamp=sim.sim_time))
             self.end_time = sim.sim_time
-            print(f"{self.agent.persona.id()} conversed with {self.persona_guid} on {self.topic}.\n{conversation_formatted}")
+            print(f"{self.agent.persona.id()} conversed with {self.persona_guid} on {self.topic}.\n"
+                  f"{conversation_formatted}")
         else:
             print(f"Failed to generate conversation: {generated_conversation.error}")
 
