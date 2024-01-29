@@ -4,14 +4,12 @@ from datetime import timedelta
 import typing
 from typing import Dict, Any
 
-import langchain
-
 import fable_saga
-from demos.space_colony import sim_models
-from demos.space_colony.sim_models import EntityId
+from fable_saga.demos.space_colony import sim_models
+from fable_saga.demos.space_colony.sim_models import EntityId
 
 if typing.TYPE_CHECKING:
-    from demos.space_colony.simulation import Simulation, SimAgent
+    from fable_saga.demos.space_colony.simulation import Simulation, SimAgent
 
 
 class SimAction:

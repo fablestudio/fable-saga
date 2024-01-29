@@ -3,10 +3,12 @@ import datetime
 import pytest
 from unittest.mock import Mock
 
+from langchain.chat_models import FakeListChatModel
+
 import fable_saga
 import fable_saga.conversations
-from demos.space_colony import simulation
-from demos.space_colony.simulation import ActionGenerator, ConversationGenerator
+from fable_saga.demos.space_colony import simulation
+from fable_saga.demos.space_colony.simulation import ActionGenerator, ConversationGenerator
 from test_saga import fake_actions_llm, FakeChatOpenAI
 from test_conversations import fake_conversation_llm
 

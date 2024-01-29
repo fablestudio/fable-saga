@@ -13,8 +13,8 @@ import yaml
 import fable_saga
 
 import fable_saga.conversations
-from demos.space_colony import sim_models
-from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect, SimAction
+from fable_saga.demos.space_colony import sim_models
+from fable_saga.demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect, SimAction
 
 
 class MemoryStore(collections.UserList):
