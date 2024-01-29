@@ -151,26 +151,7 @@ class ActionGenerator:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
-        context = ""
-        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
-        context += "LOCATIONS: The following locations are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
-        context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
-        context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
-
-        if sim_agent.persona is not None:
-            context += ("You are a character in a story about the crew of the spaceship \"Stellar Runner\" "
-                        + "that is travelling "
-                        + "to a space colony on one of Jupiter's moons to deliver supplies. It's still 30 days before "
-                        + "you reach your destination\n")
-            context += f"You are {sim_agent.persona.id()}.\n\n"
-
-        if sim_agent.location is not None:
-            context += f"Your location is {sim_agent.location.id()}.\n"
-
+        context = Format.standard_llm_context(sim_agent, sim)
         return await self.saga_agent.generate_actions(context, sim_agent.skills,
                                                       max_tries=retries, verbose=verbose, model_override=model_override)
 
@@ -196,7 +177,8 @@ class ConversationGenerator:
     def __init__(self, conversation_agent: fable_saga.conversations.ConversationAgent):
         self.conversation_agent = conversation_agent
 
-    async def generate_conversation(self, sim: Simulation, sim_agent: SimAgent, other_agent_id: str, retries=0,
+    async def generate_conversation(self, sim: Simulation, sim_agent: SimAgent, other_agent_id: str,
+                                    additional_context: str=None, retries=0,
                                     verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
         """Generate a conversation between sim_agent and other_agent.
         Note that saga_agent.generate_conversation can support more than 2 agents,
@@ -206,18 +188,13 @@ class ConversationGenerator:
             print("Error: generate_conversation requires a valid sim_agent and other_agent_id")
             return
 
-        print(f"Generating conversation between {sim_agent.persona.id()} and {other_agent_id}...")
-        context = ""
-        context += (f"You are a character named {sim_agent.persona.id()} in a story about the crew of the spaceship"
-                    f" \"Stellar Runner\" that is travelling to a space colony on one of Jupiter's moons to deliver"
-                    f" supplies. It's still 30 days before you reach your destination\n")
-        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
-        context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
+        context = Format.standard_llm_context(sim_agent, sim)
 
-        if sim_agent.location is not None:
-            context += f"Your location is {sim_agent.location.id()}.\n"
+        context += f"[CONVERSATION]\nDo not repeat previous conversations. Check your memories for previous conversations. Write compelling dialogue!\n"
+        if additional_context is not None:
+            context += additional_context
+
+        print(f"Generating conversation between {sim_agent.persona.id()} and {other_agent_id}...")
 
         return await self.conversation_agent.generate_conversation([sim_agent.persona.id(), other_agent_id], context,
                                                                    max_tries=retries, verbose=verbose,
@@ -254,6 +231,38 @@ class Format:
         else:
             timestamp = Format.simple_time_ago(action.start_time, current_datetime)
         return f"{timestamp}: {action.summary()}"
+
+    @staticmethod
+    def standard_llm_context(sim_agent: SimAgent, sim: Simulation):
+        context = ""
+        context += (f"You are a character named {sim_agent.persona.id()} in a story about the crew of the spaceship"
+                    f" \"Stellar Runner\" that is travelling to a space colony on one of Jupiter's moons to deliver"
+                    f" supplies.\n")
+        context += "[CREW]: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
+        context += "[LOCATIONS]: The following locations are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
+        context += "[MEMORIES]: The following memories are available:\n" \
+                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
+        context += "[INTERACTABLE OBJECTS]: The following interactable objects are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
+        context += "[SKILLS]: The following skills are available to generate actions from:\n" \
+                      + f"{json.dumps([cattrs.unstructure(skill) for skill in sim_agent.skills])}\n"
+
+        context += f"[CONTEXT]" \
+                + (f"You are a character performing in a larger narrative, not a real person. Choose actions that will "
+                   f"help you achieve your most important and immediate goals. Do not do the same thing again if you "
+                   f"have already done it. Staying true to your character's personality and circumstances. "
+                   f"Use your observations and conversations to inform your actions. Do not make up new characters. "
+                   f"Only use provided skills to create action options (do not make up skills). "
+                   f"Provide a goal for your character to achieve as well as the action. "
+                   f"Keep things interesting! Move the narrative forward! Add Drama! Add Conflict! Add Tension! Add "
+                   f"Suspense! Add Mystery! Add Intrigue! Add Romance! Add Comedy! Add Action! Add Adventure! Add Horror! "
+                   f"Write yor actions as if you were writing a story. Give them depth and backstory. Make them disagreeable")
+
+        if sim_agent.location is not None:
+            context += f"Your location is {sim_agent.location.id()}.\n"
+        return context
 
 
 async def main():

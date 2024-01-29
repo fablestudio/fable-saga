@@ -151,7 +151,8 @@ class ConverseWith(SimAction):
 
         # Generate and format the conversation into a memory
         generated_conversation = await sim.conversation_generator.generate_conversation(sim, self.agent,
-                                                                                        self.persona_guid)
+                                                                                        self.persona_guid,
+                                                                                        f"[TOPIC] \n {self.topic}")
         if generated_conversation.error is None:
             conversation_formatted = "Dialogue:\n"
             for turn in generated_conversation.conversation:
