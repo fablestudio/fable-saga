@@ -5,12 +5,13 @@ import collections
 import json
 import pathlib
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
+from typing import List, Dict, Optional, Any
 
 import cattrs
 import yaml
 
 import fable_saga
+
 import fable_saga.conversations
 from demos.space_colony import sim_models
 from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect, SimAction
@@ -102,6 +103,8 @@ class Simulation:
         self.action_generator = action_generator
         # The generator used to create conversations.
         self.conversation_generator = conversation_generator
+        # A general purpose langchain model for doing simple simulation hallucination.
+        self.sim_model = fable_saga.ChatOpenAI(model_name=fable_saga.default_openai_model_name, temperature=0.9, max_tokens=100, verbose=True)
 
     def load(self):
         """Load the simulation data from the YAML files."""

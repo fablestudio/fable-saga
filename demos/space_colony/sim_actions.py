@@ -4,6 +4,8 @@ from datetime import timedelta
 import typing
 from typing import Dict, Any
 
+import langchain
+
 import fable_saga
 from demos.space_colony import sim_models
 from demos.space_colony.sim_models import EntityId
@@ -127,11 +129,27 @@ class Reflect(SimAction):
         # Assume it takes one minute to reflect on something.
         if self.run_time.total_seconds() < 60:
             return
-        self.agent.memories.append(sim_models.Memory(summary=f"Reflected on {self.focus} and synthesized {self.result} "
-                                                             f"at {self.agent.location.guid} with goal {self.goal}",
+            # Generate and format the conversation into a memory
+        langchain.debug = True
+        import simulation
+        response = sim.sim_model.invoke(
+            simulation.Format.standard_llm_context(self.agent, sim) +
+            f"In the context of {self.focus}, generate a VERY short, one sentence, specific actionable plan to achieve {self.result} within a larger goal of {self.goal}."
+            f"Then, break down the plan into smaller steps that ONLY use the types of skills listed as numbered bullet points and are also very, very short. Don't explain the steps, just list them"
+            f"For example, if the focus is 'ship', the result is 'fix engine', and the goal is 'escape attack', then the plan might be 'replace coupler to fix ship engine'."
+            f"Then, the steps might be '1) take_to: coupler - to engine_room', '2) interact: engine - replace engine coupler', 3) converse_with: captain - confirm it's fixed."
+        )
+        reflection = response.content
+        langchain.debug = False
+
+        formatted_reflection = f"Reflected while " + \
+                               f"at {self.agent.location.guid}: " + \
+                               f"{reflection}"
+
+        self.agent.memories.append(sim_models.Memory(summary=formatted_reflection,
                                                      timestamp=sim.sim_time))
         self.end_time = sim.sim_time
-        print(f"{self.agent.persona.id()} reflected on {self.focus} and synthesized {self.result}.")
+        print(f"{self.agent.persona.id()}: {formatted_reflection}")
         self.complete()
 
 
