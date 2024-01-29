@@ -90,7 +90,9 @@ class SimAgent:
 
 
 class Simulation:
-    def __init__(self, action_generator: 'ActionGenerator', conversation_generator: 'ConversationGenerator'):
+    def __init__(self, action_generator: 'ActionGenerator',
+                 conversation_generator: 'ConversationGenerator',
+                 general_purpose_llm=None):
         # The current time on the ship.
         self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
         # The crew on the ship.
@@ -104,7 +106,9 @@ class Simulation:
         # The generator used to create conversations.
         self.conversation_generator = conversation_generator
         # A general purpose langchain model for doing simple simulation hallucination.
-        self.sim_model = fable_saga.ChatOpenAI(model_name=fable_saga.default_openai_model_name, temperature=0.9, max_tokens=100, verbose=True)
+        self.sim_model = general_purpose_llm if general_purpose_llm is not None else \
+            fable_saga.ChatOpenAI(model_name=fable_saga.default_openai_model_name, temperature=0.9,
+                                  max_tokens=100, verbose=True)
 
     def load(self):
         """Load the simulation data from the YAML files."""

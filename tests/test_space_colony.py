@@ -21,16 +21,22 @@ def fake_saga_agent(fake_actions_llm):
 def fake_conversation_agent(fake_conversation_llm):
     return fable_saga.conversations.ConversationAgent(fake_conversation_llm)
 
+@pytest.fixture
+def fake_chat_openai():
+    return FakeChatOpenAI(responses=[], sleep=0.1)
+
 
 class TestSimulation:
 
-    def test_simulation_init(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent))
+    def test_simulation_init(self, fake_saga_agent, fake_conversation_agent, fake_chat_openai):
+        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent),
+                                    fake_chat_openai)
         assert sim is not None
         assert sim.sim_time == datetime.datetime(2060, 1, 1, 8, 0)
 
-    def test_simulation_load_agents(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent))
+    def test_simulation_load_agents(self, fake_saga_agent, fake_conversation_agent, fake_chat_openai):
+        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent),
+                                    fake_chat_openai)
         sim.load()
 
         # Check that the simulation sim_agents are initialized correctly.
@@ -43,8 +49,9 @@ class TestSimulation:
         assert "Diplomatic yet assertive" in captain.persona.personality
         assert "Captain" in captain.persona.role
 
-    def test_simulation_load_skills(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent))
+    def test_simulation_load_skills(self, fake_saga_agent, fake_conversation_agent, fake_chat_openai):
+        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent),
+                                    fake_chat_openai)
         sim.load()
 
         # Check that the skills are initialized correctly.
@@ -54,7 +61,8 @@ class TestSimulation:
         assert list(captain.skills[0].parameters.keys()) == ['destination', 'goal']
 
     def test_simulation_load_locations(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent))
+        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent),
+                                    fake_chat_openai)
         sim.load()
 
         # Check that the locations are initialized correctly.
@@ -64,8 +72,9 @@ class TestSimulation:
         assert "the heart of the ship" in engine_room.description
         assert engine_room.guid == "engine_room"
 
-    def test_simulation_load_objects(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent))
+    def test_simulation_load_objects(self, fake_saga_agent, fake_conversation_agent, fake_chat_openai):
+        sim = simulation.Simulation(ActionGenerator(fake_saga_agent), ConversationGenerator(fake_conversation_agent),
+                                    fake_chat_openai)
         sim.load()
 
         # Check that the interactable objects are initialized correctly.
@@ -75,7 +84,7 @@ class TestSimulation:
         assert engine.affordances == ['sit', 'access_ship_logs', 'issue_commands']
 
     @pytest.mark.asyncio
-    async def test_simulation_tick(self, fake_conversation_agent):
+    async def test_simulation_tick(self, fake_conversation_agent, fake_chat_openai):
 
         goto_bridge_llm = FakeChatOpenAI(responses=[
             """{"options": [
@@ -86,7 +95,7 @@ class TestSimulation:
         ])
 
         sim = simulation.Simulation(ActionGenerator(fable_saga.SagaAgent(goto_bridge_llm)),
-                                    ConversationGenerator(fake_conversation_agent))
+                                    ConversationGenerator(fake_conversation_agent), fake_chat_openai)
         for agent in sim.agents.values():
             mock = Mock()
             agent.tick = mock
@@ -100,7 +109,7 @@ class TestSimulation:
         assert sim.sim_time == datetime.datetime(2060, 1, 1, 8, 0, 59)
 
     @pytest.mark.asyncio
-    async def test_go_to(self, fake_conversation_llm):
+    async def test_go_to(self, fake_conversation_llm, fake_chat_openai):
 
         goto_bridge_llm = FakeChatOpenAI(responses=[
             """{"options": [
@@ -111,7 +120,7 @@ class TestSimulation:
         ])
 
         sim = simulation.Simulation(ActionGenerator(fable_saga.SagaAgent(goto_bridge_llm)),
-                                    ConversationGenerator(fake_conversation_llm))
+                                    ConversationGenerator(fake_conversation_llm), fake_chat_openai)
         sim.load()
 
         await sim.tick(datetime.timedelta(seconds=30))
