@@ -130,7 +130,6 @@ class Reflect(SimAction):
         if self.run_time.total_seconds() < 60:
             return
             # Generate and format the conversation into a memory
-        langchain.debug = True
         import simulation
         response = sim.sim_model.invoke(
             simulation.Format.standard_llm_context(self.agent, sim) +
@@ -140,7 +139,6 @@ class Reflect(SimAction):
             f"Then, the steps might be '1) take_to: coupler - to engine_room', '2) interact: engine - replace engine coupler', 3) converse_with: captain - confirm it's fixed."
         )
         reflection = response.content
-        langchain.debug = False
 
         formatted_reflection = f"Reflected while " + \
                                f"at {self.agent.location.guid}: " + \
