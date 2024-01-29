@@ -62,7 +62,8 @@ class SimAgent:
 
         # Choose an action if we don't have one.
         if self.action is None:
-            print(f"\n========== {self.persona.id()} ===========")
+            print(f"\n========== {self.persona.id()} ({self.persona.job}) at {self.location.name} ===========")
+
             actions = await sim.action_generator.generate_action_options(sim, self, verbose=False)
             if actions.error is not None:
                 print(f"Error generating actions: {actions.error}, waiting for next tick.")

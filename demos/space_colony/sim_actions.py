@@ -14,6 +14,7 @@ if typing.TYPE_CHECKING:
 
 class SimAction:
     """Base class for all actions."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         self.agent = agent
         self.action_data: fable_saga.Action = action_data
@@ -43,6 +44,7 @@ class SimAction:
 
 class GoTo(SimAction):
     """Move to a new location."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.destination: EntityId = self.parameters.get('destination', "")
@@ -55,16 +57,19 @@ class GoTo(SimAction):
             return
         previous_location = self.agent.location.guid
         self.agent.location = sim.locations[EntityId(self.destination)]
-        self.agent.memories.append(sim_models.Memory(summary=f"Moved from {previous_location} to {self.destination} "
-                                                             f"with goal {self.goal}",
+
+        summary = f"Moved from {previous_location} to {self.destination} with goal {self.goal}"
+
+        self.agent.memories.append(sim_models.Memory(summary=summary,
                                                      timestamp=sim.sim_time))
         self.end_time = sim.sim_time
-        print(f"{self.agent.persona.id()} moved to {self.destination}.")
+        print(f"{self.agent.persona.id()}: {summary}")
         self.complete()
 
 
 class Interact(SimAction):
     """Interact with an object using a specific interaction."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.item_guid: EntityId = self.parameters.get('item_guid')
@@ -86,6 +91,7 @@ class Interact(SimAction):
 
 class Wait(SimAction):
     """Wait for a period of time."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.duration: int = int(self.parameters.get('duration', 0))
@@ -109,6 +115,7 @@ class Wait(SimAction):
 
 class Reflect(SimAction):
     """Reflect on something and synthesize a new idea."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
         self.focus: str = self.parameters.get('focus', "")
@@ -130,6 +137,7 @@ class Reflect(SimAction):
 
 class ConverseWith(SimAction):
     """Converse with another persona."""
+
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
 
