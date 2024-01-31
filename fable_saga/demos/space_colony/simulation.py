@@ -1,17 +1,25 @@
+from __future__ import annotations
+
 import asyncio
 import collections
 import json
 import pathlib
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
+
 import cattrs
 import yaml
-from datetime import datetime, timedelta
+
 import fable_saga
-from demos.space_colony import sim_models
+
+import fable_saga.conversations
+from fable_saga.demos.space_colony import sim_models
+from fable_saga.demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect, SimAction
 
 
 class MemoryStore(collections.UserList):
     """A memory store is a list of memories that can be filtered by a time range."""
+
     def __init__(self, memories: List[sim_models.Memory]):
         super().__init__(memories)
 
@@ -24,6 +32,7 @@ class MemoryStore(collections.UserList):
         return self.data[:max_results]
 
 
+# noinspection PyShadowingNames
 class SimAgent:
     """A SimAgent is a persona in the simulation. It has a persona, a location, and a set of skills."""
 
@@ -32,7 +41,7 @@ class SimAgent:
         self.persona: Optional[sim_models.Persona] = None
         self.location: Optional[sim_models.Location] = None
         self.skills: List[fable_saga.Skill] = []
-        self.action: Optional['sim_actions.SimAction'] = None
+        self.action: Optional[SimAction] = None
         self.memories: MemoryStore = MemoryStore([])
         self.choose_action_callback = None
 
@@ -54,7 +63,8 @@ class SimAgent:
 
         # Choose an action if we don't have one.
         if self.action is None:
-            print(f"\n========== {self.persona.id()} ===========")
+            print(f"\n========== {self.persona.id()} ({self.persona.job}) at {self.location.name} ===========")
+
             actions = await sim.action_generator.generate_action_options(sim, self, verbose=False)
             if actions.error is not None:
                 print(f"Error generating actions: {actions.error}, waiting for next tick.")
@@ -80,7 +90,9 @@ class SimAgent:
 
 
 class Simulation:
-    def __init__(self, action_generator: 'ActionGenerator', conversation_generator: 'ConversationGenerator'):
+    def __init__(self, action_generator: 'ActionGenerator',
+                 conversation_generator: 'ConversationGenerator',
+                 general_purpose_llm=None):
         # The current time on the ship.
         self.sim_time = datetime(2060, 1, 1, 8, 0, 0)
         # The crew on the ship.
@@ -93,6 +105,10 @@ class Simulation:
         self.action_generator = action_generator
         # The generator used to create conversations.
         self.conversation_generator = conversation_generator
+        # A general purpose langchain model for doing simple simulation hallucination.
+        self.sim_model = general_purpose_llm if general_purpose_llm is not None else \
+            fable_saga.ChatOpenAI(model_name=fable_saga.default_openai_model_name, temperature=0.9,
+                                  max_tokens=100, verbose=True)
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -134,39 +150,21 @@ class Simulation:
 
 class ActionGenerator:
 
-    def __init__(self, saga_agent: fable_saga.Agent):
+    def __init__(self, saga_agent: fable_saga.SagaAgent):
         self.saga_agent = saga_agent
 
-    async def generate_action_options(self, sim: Simulation, sim_agent: SimAgent, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
+    async def generate_action_options(self, sim: Simulation, sim_agent: SimAgent, retries=0, verbose=False,
+                                      model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
-        context = ""
-        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
-        context += "LOCATIONS: The following locations are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
-        context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
-        context += "INTERACTABLE OBJECTS: The following interactable objects are available:\n" \
-                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
-
-        if sim_agent.persona is not None:
-            context += f"You are a character in a story about the crew of the spaceship \"Stellar Runner\" that is travelling " \
-                       + "to a space colony on one of Jupiter's moons to deliver supplies. It's still 30 days before " \
-                       + "you reach your destination\n"
-            context += f"You are {sim_agent.persona.id()}.\n\n"
-
-        if sim_agent.location is not None:
-            context += f"Your location is {sim_agent.location.id()}.\n"
-
+        context = Format.standard_llm_context(sim_agent, sim)
         return await self.saga_agent.generate_actions(context, sim_agent.skills,
                                                       max_tries=retries, verbose=verbose, model_override=model_override)
 
     @staticmethod
     def sim_action_factory(sim_agent: SimAgent, action: fable_saga.Action):
         """Handle the chosen action."""
-        from demos.space_colony.sim_actions import GoTo, Interact, ConverseWith, Wait, Reflect
         if action.skill == 'go_to':
             return GoTo(sim_agent, action)
         elif action.skill == 'interact':
@@ -183,36 +181,36 @@ class ActionGenerator:
 
 class ConversationGenerator:
 
-    def __init__(self, saga_agent: fable_saga.Agent):
-        self.saga_agent = saga_agent
+    def __init__(self, conversation_agent: fable_saga.conversations.ConversationAgent):
+        self.conversation_agent = conversation_agent
 
-    async def generate_conversation(self, sim: Simulation, sim_agent: SimAgent, other_agent_id: str, retries=0, verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
+    async def generate_conversation(self, sim: Simulation, sim_agent: SimAgent, other_agent_id: str,
+                                    additional_context: str=None, retries=0,
+                                    verbose=False, model_override: Optional[str] = None) -> [List[Dict[str, Any]]]:
         """Generate a conversation between sim_agent and other_agent.
-        Note that saga_agent.generate_conversation can support more than 2 agents, but we limit this here for simplicity"""
+        Note that saga_agent.generate_conversation can support more than 2 agents,
+        but we limit this here for simplicity"""
 
         if sim_agent.persona is None or other_agent_id is None:
             print("Error: generate_conversation requires a valid sim_agent and other_agent_id")
             return
 
+        context = Format.standard_llm_context(sim_agent, sim)
+
+        context += f"[CONVERSATION]\nDo not repeat previous conversations. Check your memories for previous conversations. Write compelling dialogue!\n"
+        if additional_context is not None:
+            context += additional_context
+
         print(f"Generating conversation between {sim_agent.persona.id()} and {other_agent_id}...")
-        context = ""
-        context += (f"You are a character named {sim_agent.persona.id()} in a story about the crew of the spaceship"
-                    f" \"Stellar Runner\" that is travelling to a space colony on one of Jupiter's moons to deliver"
-                    f" supplies. It's still 30 days before you reach your destination\n")
-        context += "CREW: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
-                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
-        context += "MEMORIES: The following memories are available:\n" \
-                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
 
-        if sim_agent.location is not None:
-            context += f"Your location is {sim_agent.location.id()}.\n"
-
-        return await self.saga_agent.generate_conversation([sim_agent.persona.id(), other_agent_id], context,
-                                                           max_tries=retries, verbose=verbose, model_override=model_override)
+        return await self.conversation_agent.generate_conversation([sim_agent.persona.id(), other_agent_id], context,
+                                                                   max_tries=retries, verbose=verbose,
+                                                                   model_override=model_override)
 
 
 class Format:
     """A set of methods to format simulation data for printing to the console and to the SAGA context."""
+
     @staticmethod
     def simple_time_ago(dt: datetime, current_datetime: datetime) -> str:
         """Format a datetime as a simple time ago string."""
@@ -230,7 +228,7 @@ class Format:
         return f"{Format.simple_time_ago(memory.timestamp, current_datetime)}: {memory.summary}"
 
     @staticmethod
-    def action(action: 'sim_actions.SimAction', current_datetime: datetime) -> str:
+    def action(action: SimAction, current_datetime: datetime) -> str:
         """Format an action with a simple time ago string."""
         if action is None:
             return "Idle"
@@ -241,10 +239,43 @@ class Format:
             timestamp = Format.simple_time_ago(action.start_time, current_datetime)
         return f"{timestamp}: {action.summary()}"
 
+    @staticmethod
+    def standard_llm_context(sim_agent: SimAgent, sim: Simulation):
+        context = ""
+        context += (f"You are a character named {sim_agent.persona.id()} in a story about the crew of the spaceship"
+                    f" \"Stellar Runner\" that is travelling to a space colony on one of Jupiter's moons to deliver"
+                    f" supplies.\n")
+        context += "[CREW]: The crew of the \"Stellar Runner\" is made up of the following people:\n" \
+                   + f"{json.dumps([cattrs.unstructure(agent.persona) for agent in sim.agents.values()])}\n"
+        context += "[LOCATIONS]: The following locations are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(location) for location in sim.locations.values()])}\n"
+        context += "[MEMORIES]: The following memories are available:\n" \
+                   + f"{json.dumps([Format.memory(memory, sim.sim_time) for memory in sim_agent.memories])}\n"
+        context += "[INTERACTABLE OBJECTS]: The following interactable objects are available:\n" \
+                   + f"{json.dumps([cattrs.unstructure(obj) for obj in sim.interactable_objects.values()])}\n"
+        context += "[SKILLS]: The following skills are available to generate actions from:\n" \
+                      + f"{json.dumps([cattrs.unstructure(skill) for skill in sim_agent.skills])}\n"
+
+        context += f"[CONTEXT]" \
+                + (f"You are a character performing in a larger narrative, not a real person. Choose actions that will "
+                   f"help you achieve your most important and immediate goals. Do not do the same thing again if you "
+                   f"have already done it. Staying true to your character's personality and circumstances. "
+                   f"Use your observations and conversations to inform your actions. Do not make up new characters. "
+                   f"Only use provided skills to create action options (do not make up skills). "
+                   f"Provide a goal for your character to achieve as well as the action. "
+                   f"Keep things interesting! Move the narrative forward! Add Drama! Add Conflict! Add Tension! Add "
+                   f"Suspense! Add Mystery! Add Intrigue! Add Romance! Add Comedy! Add Action! Add Adventure! Add Horror! "
+                   f"Write yor actions as if you were writing a story. Give them depth and backstory. Make them disagreeable")
+
+        if sim_agent.location is not None:
+            context += f"Your location is {sim_agent.location.id()}.\n"
+        return context
+
 
 async def main():
     """The main entry point for the simulation."""
-    sim: Simulation = Simulation(ActionGenerator(fable_saga.Agent()), ConversationGenerator(fable_saga.Agent()))
+    sim: Simulation = Simulation(ActionGenerator(fable_saga.SagaAgent()),
+                                 ConversationGenerator(fable_saga.conversations.ConversationAgent()))
     sim.load()
 
     async def list_actions(actions: fable_saga.GeneratedActions):
@@ -254,7 +285,16 @@ async def main():
             for key, value in action.parameters.items():
                 output += f"  {key}: {value}"
             print(output)
-        return int(input("Choose an action: "))
+        value = input("Choose an action: ")
+        if value == "" or value is None:
+            return 0
+        while True:
+            try:
+                assert 0 <= int(value) < len(actions.options)
+                return int(value)
+            except (ValueError, AssertionError) as e:
+                print(f"Invalid choice {value}: {e}.")
+                value = input("Choose an action: ")
 
     for agent in sim.agents.values():
         agent.choose_action_callback = list_actions
@@ -274,7 +314,6 @@ async def main():
     print("Exiting")
     exit(0)
 
+
 if __name__ == '__main__':
     asyncio.run(main())
-
-

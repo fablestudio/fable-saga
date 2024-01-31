@@ -7,7 +7,7 @@ Demo Quickstart
 2. Clone this repo and change the directory to it.
 3. run `poetry install` to install dependencies.
 4. start a poetry shell with `poetry shell` to make sure you are using the correct python version and have the correct environment variables set.
-5. run `python demos/space_colony/simulation.py`
+5. run `python -m fable_saga.demos.space_colony.simulation`
 
 B.Y.O.S. (Bring Your Own Simulation)
 --------
@@ -253,7 +253,7 @@ Generating Actions from Skills
 -------------
 Right now the agents and their spaceship is very simple, but with the few actions they have, they
 can generate a lot of interesting behavior. The actions they can take are defined by "Skills" which
-are listed in the `demos/space_colony/resources/skills.yaml` file. Here are two of them:
+are listed in the `fable_saga/demos/space_colony/resources/skills.yaml` file. Here are two of them:
 
 ```Yaml
 - name: go_to

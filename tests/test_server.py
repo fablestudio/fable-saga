@@ -7,8 +7,10 @@ from cattr import unstructure
 
 import fable_saga
 from fable_saga import server as saga_server
+# from fable_saga.conversations import
 from test_embeddings import fake_embedding_model, fake_documents
-from test_saga import fake_actions_llm, fake_skills, fake_actions_request, fake_conversation_llm, fake_conversation_request
+from test_saga import fake_actions_llm, fake_skills, fake_actions_request
+from test_conversations import fake_conversation_llm, fake_conversation_request
 
 
 class TestSagaServer:
@@ -38,7 +40,7 @@ class TestSagaServer:
 
     @pytest.mark.asyncio
     async def test_generate_conversation(self, fake_conversation_llm, fake_conversation_request):
-        server = saga_server.SagaServer(llm=fake_conversation_llm)
+        server = saga_server.ConversationServer(llm=fake_conversation_llm)
         response = await server.generate_conversation(fake_conversation_request)
 
         # The response is a valid ActionsResponse
@@ -49,7 +51,7 @@ class TestSagaServer:
         assert response.reference == fake_conversation_request.reference
 
         # Sanity check that the skills are the same in our fake_llm (test data ignores the requested skills here).
-        assert isinstance(response.conversation, fable_saga.GeneratedConversation)
+        assert isinstance(response.conversation, fable_saga.conversations.GeneratedConversation)
 
         # Validate conversation data
         conversation = response.conversation.conversation

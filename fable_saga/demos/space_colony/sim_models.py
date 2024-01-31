@@ -21,6 +21,7 @@ class Persona(EntityInterface):
     appearance: str
     personality: str
     role: str
+    job: str
 
     def id(self) -> EntityId:
         return self.guid
