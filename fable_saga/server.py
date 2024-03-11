@@ -17,7 +17,7 @@ from fable_saga.conversations import GeneratedConversation, ConversationAgent
 logger = logging.getLogger(__name__)
 
 # module level converter to convert between objects and dicts.
-converter = cattrs.Converter(forbid_extra_keys=True)
+converter = cattrs.Converter(forbid_extra_keys=False)
 
 """
 Sets up a server that can be used to generate actions for SAGA. Either HTTP or socketio can be used.
