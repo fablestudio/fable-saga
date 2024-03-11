@@ -1,6 +1,11 @@
 SAGA: Skill to Action Generation for Agents
 ===========================================
 
+Join the Community
+--------
+> 🚨Private Beta Applications now open for the 3D environment that works with SAGA called Thistle Gulch - [Check out the announcement and apply](https://blog.fabledev.com/blog/beta-application-for-thistle-gulch-now-open)! In the meantime, try out the space-colony text based demo below.
+> We're creating a dev-community around SAGA, Thistle Gulch, and Multi-Agent Simulations in general. [Reach out on twitter](https://twitter.com/frankcarey) if you're interested!
+
 Demo Quickstart
 -------------
 1. Make sure you have git, python-3.10/11, and poetry installed and OPENAI key setup (see below).
