@@ -47,15 +47,23 @@ class GeneratedActions:
 
     def sort(self):
         """Sort the actions by score."""
-        self.options = [x for _, x in sorted(zip(self.scores, self.options), key=lambda pair: pair[0], reverse=True)]
+        self.options = [
+            x
+            for _, x in sorted(
+                zip(self.scores, self.options), key=lambda pair: pair[0], reverse=True
+            )
+        ]
         self.scores = sorted(self.scores, reverse=True)
 
 
 class SagaCallbackHandler(AsyncCallbackHandler):
     """Async callback handler that can be used to handle callbacks from langchain."""
 
-    def __init__(self, prompt_callback: Optional[Callable[[List[str]], None]] = None,
-                 response_callback: Optional[Callable[[LLMResult], None]] = None):
+    def __init__(
+        self,
+        prompt_callback: Optional[Callable[[List[str]], None]] = None,
+        response_callback: Optional[Callable[[LLMResult], None]] = None,
+    ):
         super().__init__()
         self.last_prompt: Optional[str] = None
         self.last_generation: Optional[str] = None
@@ -83,13 +91,18 @@ class SagaCallbackHandler(AsyncCallbackHandler):
 
 
 class SagaAgent:
-    """SAGA Agent """
+    """SAGA Agent"""
 
     def __init__(self, llm: BaseChatModel = None):
-        self._llm = llm if llm is not None else \
-            ChatOpenAI(temperature=default_openai_model_temperature, model_name=default_openai_model_name,
-                       model_kwargs={
-                           "response_format": {"type": "json_object"}})
+        self._llm = (
+            llm
+            if llm is not None
+            else ChatOpenAI(
+                temperature=default_openai_model_temperature,
+                model_name=default_openai_model_name,
+                model_kwargs={"response_format": {"type": "json_object"}},
+            )
+        )
         self.guidance = """
 * Provide a goal for your character to achieve as well as the action.
 * Do not make up new characters.
@@ -100,21 +113,40 @@ class SagaAgent:
 * Advance the story by generating actions that will help you achieve your most important and immediate goals.
 """
         path = pathlib.Path(__file__).parent.resolve()
-        self.generate_actions_prompt = load_prompt(path / "prompt_templates/generate_actions.yaml")
-        self.generate_conversation_prompt = load_prompt(path / "prompt_templates/generate_conversation.yaml")
+        self.generate_actions_prompt = load_prompt(
+            path / "prompt_templates/generate_actions.yaml"
+        )
+        self.generate_conversation_prompt = load_prompt(
+            path / "prompt_templates/generate_conversation.yaml"
+        )
 
     def generate_chain(self, model_override: Optional[str] = None) -> LLMChain:
-        self._llm.model_name = model_override if model_override else default_openai_model_name
+        self._llm.model_name = (
+            model_override if model_override else default_openai_model_name
+        )
         return LLMChain(llm=self._llm, prompt=self.generate_actions_prompt)
 
-    async def generate_actions(self, context: str, skills: List[Skill], max_tries=0, verbose=False, model_override: Optional[str] = None) -> GeneratedActions:
+    async def generate_actions(
+        self,
+        context: str,
+        skills: List[Skill],
+        max_tries=0,
+        verbose=False,
+        model_override: Optional[str] = None,
+    ) -> GeneratedActions:
         """Generate actions for the given context and skills."""
         assert context is not None and len(context) > 0, "Must provide a context."
-        assert skills is not None and len(skills) > 0, "Must provide at least one skill."
+        assert (
+            skills is not None and len(skills) > 0
+        ), "Must provide at least one skill."
         for skill in skills:
             assert isinstance(skill, Skill), "Must provide a list of Skill objects."
-            assert skill.name is not None and len(skill.name) > 0, "Must provide a skill name."
-            assert skill.description is not None and len(skill.description) > 0, "Must provide a skill description."
+            assert (
+                skill.name is not None and len(skill.name) > 0
+            ), "Must provide a skill name."
+            assert (
+                skill.description is not None and len(skill.description) > 0
+            ), "Must provide a skill description."
 
         chain = self.generate_chain(model_override)
         chain.verbose = verbose
@@ -122,7 +154,7 @@ class SagaAgent:
         # Set up the callback handler.
         callback_handler = SagaCallbackHandler(
             prompt_callback=lambda prompts: logger.info(f"Prompts: {prompts}"),
-            response_callback=lambda result: logger.info(f"Response: {result}")
+            response_callback=lambda result: logger.info(f"Response: {result}"),
         )
 
         retries = 0
@@ -132,12 +164,14 @@ class SagaAgent:
 
         while retries <= max_tries:
             try:
-                last_response = await chain.arun(context=context, skills=json_skills, callbacks=[callback_handler])
+                last_response = await chain.arun(
+                    context=context, skills=json_skills, callbacks=[callback_handler]
+                )
                 raw_actions = json.loads(last_response)
                 # If we parse the results, but didn't get any options, retry. Should be rare.
-                if raw_actions.get('options') is None:
+                if raw_actions.get("options") is None:
                     raise Exception("No options key found in JSON response.")
-                if len(raw_actions['options']) == 0:
+                if len(raw_actions["options"]) == 0:
                     raise Exception("options list is empty in JSON response.")
 
                 # Convert the options to a GeneratedActions object and add metadata.
@@ -157,7 +191,13 @@ class SagaAgent:
             except Exception as e:
                 last_error = str(e)
             retries += 1
-        return GeneratedActions(options=[], scores=[], retries=retries, raw_response=callback_handler.last_generation,
-                                raw_prompt=callback_handler.last_prompt, llm_info=callback_handler.last_model_info,
-                                error=f"No options found after {retries} retries."
-                                      f" Last error: {last_error}")
+        return GeneratedActions(
+            options=[],
+            scores=[],
+            retries=retries,
+            raw_response=callback_handler.last_generation,
+            raw_prompt=callback_handler.last_prompt,
+            llm_info=callback_handler.last_model_info,
+            error=f"No options found after {retries} retries."
+            f" Last error: {last_error}",
+        )

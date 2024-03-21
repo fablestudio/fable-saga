@@ -7,10 +7,11 @@ from cattr import unstructure
 
 import fable_saga
 from fable_saga import server as saga_server
+from test_conversations import fake_conversation_llm, fake_conversation_request
+
 # from fable_saga.conversations import
 from test_embeddings import fake_embedding_model, fake_documents
 from test_saga import fake_actions_llm, fake_skills, fake_actions_request
-from test_conversations import fake_conversation_llm, fake_conversation_request
 
 
 class TestSagaServer:
@@ -39,7 +40,9 @@ class TestSagaServer:
         assert options[1].skill == "skill_1"
 
     @pytest.mark.asyncio
-    async def test_generate_conversation(self, fake_conversation_llm, fake_conversation_request):
+    async def test_generate_conversation(
+        self, fake_conversation_llm, fake_conversation_request
+    ):
         server = saga_server.ConversationServer(llm=fake_conversation_llm)
         response = await server.generate_conversation(fake_conversation_request)
 
@@ -51,7 +54,9 @@ class TestSagaServer:
         assert response.reference == fake_conversation_request.reference
 
         # Sanity check that the skills are the same in our fake_llm (test data ignores the requested skills here).
-        assert isinstance(response.conversation, fable_saga.conversations.GeneratedConversation)
+        assert isinstance(
+            response.conversation, fable_saga.conversations.GeneratedConversation
+        )
 
         # Validate conversation data
         conversation = response.conversation.conversation
@@ -88,15 +93,19 @@ class TestSagaServer:
         assert response.error == "Must provide a list of Skill objects."
 
     @pytest.mark.asyncio
-    async def test_malformed_response_error(self, fake_actions_llm, fake_actions_request):
+    async def test_malformed_response_error(
+        self, fake_actions_llm, fake_actions_request
+    ):
         fake_actions_llm.responses = ["malformed"]
         server = saga_server.SagaServer(llm=fake_actions_llm)
 
         # A malformed response should raise an error.
         response = await server.generate_actions(fake_actions_request)
         assert response.actions is not None
-        assert response.actions.error == ("No options found after 1 retries. Last error: Error decoding response:"
-                                          " Expecting value: line 1 column 1 (char 0)")
+        assert response.actions.error == (
+            "No options found after 1 retries. Last error: Error decoding response:"
+            " Expecting value: line 1 column 1 (char 0)"
+        )
         assert response.reference == fake_actions_request.reference
         assert response.error is not None
 
@@ -155,31 +164,35 @@ class TestGenericHandler:
         missing_data = {}
         mock = AsyncMock()
 
-        response: Dict = await saga_server.generic_handler(missing_data, saga_server.EmbeddingsRequest,
-                                                           mock, saga_server.EmbeddingsResponse)
-        assert response['error'] is not None
-        assert response['error'] == 'Error validating request: ["required field missing @ $.texts"]'
+        response: Dict = await saga_server.generic_handler(
+            missing_data,
+            saga_server.EmbeddingsRequest,
+            mock,
+            saga_server.EmbeddingsResponse,
+        )
+        assert response["error"] is not None
+        assert (
+            response["error"]
+            == 'Error validating request: ["required field missing @ $.texts"]'
+        )
 
     @pytest.mark.asyncio
     async def test_request_bad_json_sting_error(self):
-        bad_json = 'asdf'
+        bad_json = "asdf"
         mock = AsyncMock()
 
-        response: Dict = await saga_server.generic_handler(bad_json, saga_server.EmbeddingsRequest,
-                                                           mock, saga_server.EmbeddingsResponse)
-        assert response['error'] is not None
-        assert response['error'] == 'Error decoding JSON: Expecting value: line 1 column 1 (char 0)'
+        response: Dict = await saga_server.generic_handler(
+            bad_json,
+            saga_server.EmbeddingsRequest,
+            mock,
+            saga_server.EmbeddingsResponse,
+        )
+        assert response["error"] is not None
+        assert (
+            response["error"]
+            == "Error decoding JSON: Expecting value: line 1 column 1 (char 0)"
+        )
 
-    # @pytest.mark.asyncio
-    # async def test_request_error_extra_field(self):
-    #     bad_data = {"texts": ["1", "2"], "extra": "extra"}
-    #
-    #     mock = AsyncMock()
-    #
-    #     response: Dict = await saga_server.generic_handler(bad_data, saga_server.EmbeddingsRequest,
-    #                                                        mock, saga_server.EmbeddingsResponse)
-    #     assert response['error'] is not None
-    #     assert response['error'] == 'Error validating request: ["extra fields found (extra) @ $"]'
 
     @pytest.mark.asyncio
     async def test_processing_exception_error(self):
@@ -189,30 +202,42 @@ class TestGenericHandler:
         mock = AsyncMock(side_effect=fake_error)
         fake_data = {"texts": ["1", "2"]}
 
-        response: Dict = await saga_server.generic_handler(fake_data, saga_server.EmbeddingsRequest,
-                                                           mock, saga_server.EmbeddingsResponse)
-        assert response['error'] == 'Error processing request: fake error'
+        response: Dict = await saga_server.generic_handler(
+            fake_data,
+            saga_server.EmbeddingsRequest,
+            mock,
+            saga_server.EmbeddingsResponse,
+        )
+        assert response["error"] == "Error processing request: fake error"
         mock.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_actions(self, fake_skills):
-        expected_request = saga_server.ActionsRequest(context="context", skills=fake_skills)
+        expected_request = saga_server.ActionsRequest(
+            context="context", skills=fake_skills
+        )
         fake_data = {"context": "context", "skills": unstructure(fake_skills)}
 
         async def fake_processor(_):
             return saga_server.ActionsResponse(
-                actions=fable_saga.GeneratedActions(options=[fable_saga.Action("some_skill")], scores=[1]))
+                actions=fable_saga.GeneratedActions(
+                    options=[fable_saga.Action("some_skill")], scores=[1]
+                )
+            )
 
         mock = AsyncMock(side_effect=fake_processor)
 
-        response: Dict = await saga_server.generic_handler(fake_data, saga_server.ActionsRequest,
-                                                           mock, saga_server.ActionsResponse)
+        response: Dict = await saga_server.generic_handler(
+            fake_data, saga_server.ActionsRequest, mock, saga_server.ActionsResponse
+        )
         # Check that the mock was called with the right data.
         mock.assert_called_once_with(expected_request)
-        assert response['error'] is None
-        assert response['actions']['options'] == [{'parameters': {}, 'skill': 'some_skill'}]
-        assert response['actions']['scores'] == [1]
-        assert response['reference'] is None
+        assert response["error"] is None
+        assert response["actions"]["options"] == [
+            {"parameters": {}, "skill": "some_skill"}
+        ]
+        assert response["actions"]["scores"] == [1]
+        assert response["reference"] is None
 
     @pytest.mark.asyncio
     async def test_generate_embeddings(self):
@@ -224,13 +249,17 @@ class TestGenericHandler:
 
         mock = AsyncMock(side_effect=fake_processor)
 
-        response: Dict = await saga_server.generic_handler(fake_data, saga_server.EmbeddingsRequest,
-                                                           mock, saga_server.EmbeddingsResponse)
+        response: Dict = await saga_server.generic_handler(
+            fake_data,
+            saga_server.EmbeddingsRequest,
+            mock,
+            saga_server.EmbeddingsResponse,
+        )
         # Check that the mock was called with the right data.
         mock.assert_called_once_with(expected_request)
-        assert response['error'] is None
-        assert response['embeddings'] == ["test"]
-        assert response['reference'] is None
+        assert response["error"] is None
+        assert response["embeddings"] == ["test"]
+        assert response["reference"] is None
 
     @pytest.mark.asyncio
     async def test_add_documents(self, fake_documents):
@@ -242,13 +271,17 @@ class TestGenericHandler:
 
         mock = AsyncMock(side_effect=fake_processor)
 
-        response: Dict = await saga_server.generic_handler(fake_data, saga_server.AddDocumentsRequest,
-                                                           mock, saga_server.AddDocumentsResponse)
+        response: Dict = await saga_server.generic_handler(
+            fake_data,
+            saga_server.AddDocumentsRequest,
+            mock,
+            saga_server.AddDocumentsResponse,
+        )
         # Check that the mock was called with the right data.
         mock.assert_called_once_with(expected_request)
-        assert response['error'] is None
-        assert response['guids'] == ["1"]
-        assert response['reference'] is None
+        assert response["error"] is None
+        assert response["guids"] == ["1"]
+        assert response["reference"] is None
 
     @pytest.mark.asyncio
     async def test_find_similar(self, fake_documents):
@@ -257,15 +290,21 @@ class TestGenericHandler:
 
         async def fake_processor(_):
             # noinspection PyTestUnpassedFixture
-            return saga_server.FindSimilarResponse(documents=fake_documents, scores=[1, 1, 1])
+            return saga_server.FindSimilarResponse(
+                documents=fake_documents, scores=[1, 1, 1]
+            )
 
         mock = AsyncMock(side_effect=fake_processor)
 
-        response: Dict = await saga_server.generic_handler(fake_data, saga_server.FindSimilarRequest,
-                                                           mock, saga_server.FindSimilarResponse)
+        response: Dict = await saga_server.generic_handler(
+            fake_data,
+            saga_server.FindSimilarRequest,
+            mock,
+            saga_server.FindSimilarResponse,
+        )
         # Check that the mock was called with the right data.
         mock.assert_called_once_with(expected_request)
-        assert response['error'] is None
-        assert response['documents'] == unstructure(fake_documents)
-        assert response['scores'] == [1, 1, 1]
-        assert response['reference'] is None
+        assert response["error"] is None
+        assert response["documents"] == unstructure(fake_documents)
+        assert response["scores"] == [1, 1, 1]
+        assert response["reference"] is None

@@ -17,13 +17,11 @@ import fable_saga.embeddings as saga_embed
 def fake_embedding_model():
     class FakeAsyncEmbeddingModel(DeterministicFakeEmbedding):
         async def aembed_documents(self, texts: List[str]):
-            func = partial(
-                self.embed_documents, texts)
+            func = partial(self.embed_documents, texts)
             return await asyncio.get_event_loop().run_in_executor(None, func)
 
         async def aembed_query(self, text: str):
-            func = partial(
-                self.embed_query, text)
+            func = partial(self.embed_query, text)
             return await asyncio.get_event_loop().run_in_executor(None, func)
 
     return FakeAsyncEmbeddingModel(size=1536)
@@ -32,7 +30,7 @@ def fake_embedding_model():
 @pytest.fixture
 def fake_documents():
     data = json.load(open("examples/embedding_documents.json"))
-    documents = [saga_embed.Document(**doc) for doc in data['documents']]
+    documents = [saga_embed.Document(**doc) for doc in data["documents"]]
     return documents
 
 
@@ -45,7 +43,9 @@ class TestEmbeddingsAgent:
         assert isinstance(agent._storage, SKLearnVectorStore)
 
     @pytest.mark.asyncio
-    async def test_embed_documents(self, fake_embedding_model: Embeddings, fake_documents):
+    async def test_embed_documents(
+        self, fake_embedding_model: Embeddings, fake_documents
+    ):
         agent = saga_embed.EmbeddingAgent(fake_embedding_model)
         embeddings = await agent.embed_documents([d.text for d in fake_documents])
         assert len(embeddings) == len(fake_documents)
@@ -60,7 +60,9 @@ class TestEmbeddingsAgent:
         assert type(embedding[0]) is numpy.float64
 
     @pytest.mark.asyncio
-    async def test_store_documents(self, fake_embedding_model: Embeddings, fake_documents):
+    async def test_store_documents(
+        self, fake_embedding_model: Embeddings, fake_documents
+    ):
         agent = saga_embed.EmbeddingAgent(fake_embedding_model)
         ids = await agent.store_documents(fake_documents)
         # Check that the count of ids is the same as the count of documents.
@@ -81,7 +83,7 @@ class TestEmbeddingsAgent:
 
         # Add the ids to the fake document's metadata since search seems to add the ids to the metadata itself.
         for idx, new_id in enumerate(ids):
-            fake_documents[idx].metadata['id'] = new_id
+            fake_documents[idx].metadata["id"] = new_id
 
         # Perform a real search (with fake embeddings).
         similar = await agent.find_similar("query", k=2)

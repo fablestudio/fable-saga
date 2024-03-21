@@ -5,6 +5,7 @@ description = "AI agents that turn skills into actions."
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
 packages = [{include = "fable_saga"}]
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -25,6 +26,8 @@ optional = true
 # dependencies used for running tests (e.g., pytest, freezegun, response).
 pytest = "^7.3.0"
 pytest-asyncio = "^0.21.1"
+mypy = "^1.9.0"
+black = "^24.3.0"
 
 
 [tool.poetry-dynamic-versioning]

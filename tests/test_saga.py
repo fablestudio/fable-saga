@@ -10,7 +10,7 @@ from fable_saga.server import ActionsRequest
 
 
 class FakeChatOpenAI(FakeListChatModel):
-    model_name: str = 'model_name_default'
+    model_name: str = "model_name_default"
 
 
 @pytest.fixture
@@ -50,15 +50,16 @@ class TestSagaAgent:
 
     @pytest.mark.asyncio
     async def test_generate_actions(self, fake_actions_llm, fake_skills):
-
         # fake_llm.callbacks = [callback_handler]
         agent = fable_saga.SagaAgent(fake_actions_llm)
 
         # Should be using the default model
-        test_model = 'test_model'
+        test_model = "test_model"
         assert fake_actions_llm.model_name != test_model
 
-        actions = await agent.generate_actions("context", fake_skills, model_override=test_model)
+        actions = await agent.generate_actions(
+            "context", fake_skills, model_override=test_model
+        )
 
         # Should be using the test model
         assert fake_actions_llm.model_name == test_model
@@ -73,15 +74,19 @@ class TestSagaAgent:
 
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
-        assert actions.raw_prompt.startswith("Human: Generate a list of different action options that your character"
-                                             " should take next using the following skills:")
+        assert actions.raw_prompt.startswith(
+            "Human: Generate a list of different action options that your character"
+            " should take next using the following skills:"
+        )
 
         # Check that the prompt contains the right skills.
         for skill in fake_skills:
             dumped_skill = unstructure(skill)
             string_skill = json.dumps(dumped_skill)
             # assert that raw_prompt is a string
-            assert actions.raw_prompt is not None and isinstance(actions.raw_prompt, str)
+            assert actions.raw_prompt is not None and isinstance(
+                actions.raw_prompt, str
+            )
             assert string_skill in actions.raw_prompt
 
     @pytest.mark.asyncio

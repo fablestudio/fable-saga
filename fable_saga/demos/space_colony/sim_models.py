@@ -1,6 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
+
 from attr import define
 
 EntityId = str
