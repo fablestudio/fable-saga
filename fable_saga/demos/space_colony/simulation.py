@@ -5,10 +5,11 @@ import collections
 import json
 import pathlib
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Callable, Awaitable
 
 import cattrs
 import yaml
+from attr import define
 
 import fable_saga
 import fable_saga.conversations
@@ -45,17 +46,21 @@ class MemoryStore(collections.UserList):
 
 
 # noinspection PyShadowingNames
+
+
+@define(slots=True)
 class SimAgent:
     """A SimAgent is a persona in the simulation. It has a persona, a location, and a set of skills."""
 
-    def __init__(self, guid: sim_models.EntityId):
-        self.guid = guid
-        self.persona: Optional[sim_models.Persona] = None
-        self.location: Optional[sim_models.Location] = None
-        self.skills: List[fable_saga.Skill] = []
-        self.action: Optional[SimAction] = None
-        self.memories: MemoryStore = MemoryStore([])
-        self.choose_action_callback = None
+    guid: str
+    persona: sim_models.Persona
+    location: sim_models.Location
+    skills: List[fable_saga.Skill] = []
+    action: Optional[SimAction] = None
+    memories: MemoryStore = MemoryStore([])
+    choose_action_callback: Optional[
+        Callable[[fable_saga.GeneratedActions], Awaitable[None]]
+    ] = None
 
     async def tick_action(self, delta: timedelta, sim: "Simulation"):
         """Tick the current action to advance and/or complete it."""
@@ -153,12 +158,13 @@ class Simulation:
         with open(path / "resources/personas.yaml", "r") as f:
             for persona_data in yaml.load(f, Loader=yaml.FullLoader):
                 persona = cattrs.structure(persona_data, sim_models.Persona)
-                agent = SimAgent(persona.id())
-                agent.persona = persona
                 # Start everyone in the crew quarters corridor.
-                agent.location = self.locations[
-                    sim_models.EntityId("crew_quarters_corridor")
-                ]
+                location = self.locations[sim_models.EntityId("crew_quarters_corridor")]
+                agent = SimAgent(
+                    persona.id(),
+                    persona=persona,
+                    location=location,
+                )
                 self.agents[persona.id()] = agent
 
         with open(path / "resources/interactable_objects.yaml", "r") as f:
@@ -194,7 +200,7 @@ class ActionGenerator:
         retries=0,
         verbose=False,
         model_override: Optional[str] = None,
-    ) -> [List[Dict[str, Any]]]:
+    ) -> fable_saga.GeneratedActions:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
@@ -234,11 +240,11 @@ class ConversationGenerator:
         sim: Simulation,
         sim_agent: SimAgent,
         other_agent_id: str,
-        additional_context: str = None,
+        additional_context: Optional[str] = None,
         retries=0,
         verbose=False,
         model_override: Optional[str] = None,
-    ) -> [List[Dict[str, Any]]]:
+    ) -> fable_saga.conversations.GeneratedConversation:
         """Generate a conversation between sim_agent and other_agent.
         Note that saga_agent.generate_conversation can support more than 2 agents,
         but we limit this here for simplicity"""
@@ -247,7 +253,9 @@ class ConversationGenerator:
             print(
                 "Error: generate_conversation requires a valid sim_agent and other_agent_id"
             )
-            return
+            return fable_saga.conversations.GeneratedConversation(
+                error="Invalid sim_agent or other_agent_id.", conversation=[]
+            )
 
         context = Format.standard_llm_context(sim_agent, sim)
 
@@ -381,7 +389,8 @@ async def main():
             print(f"---- {agent.persona.id()} ----")
             print(f"  ROLE: {agent.persona.role}")
             print(f"  LOCATION: {agent.location.name}")
-            print(f"  ACTION: {Format.action(agent.action, sim.sim_time)}")
+            if agent.action is not None:
+                print(f"  ACTION: {Format.action(agent.action, sim.sim_time)}")
             print(
                 "  MEMORIES:"
                 + "".join(

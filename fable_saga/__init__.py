@@ -67,7 +67,7 @@ class SagaCallbackHandler(AsyncCallbackHandler):
         super().__init__()
         self.last_prompt: Optional[str] = None
         self.last_generation: Optional[str] = None
-        self.last_model_info: Optional[str] = None
+        self.last_model_info: Optional[dict[str, Any]] = None
         self.prompt_callback = prompt_callback
         self.response_callback = response_callback
 

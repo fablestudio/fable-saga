@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import typing
-from datetime import timedelta
-from typing import Dict, Any
+from datetime import timedelta, datetime
+from typing import Dict, Any, Optional
 
 import fable_saga
 from fable_saga.demos.space_colony import sim_models
@@ -20,9 +20,9 @@ class SimAction:
         self.action_data: fable_saga.Action = action_data
         self.skill: str = action_data.skill
         self.parameters: Dict[str, Any] = action_data.parameters
-        self.start_time = None
+        self.start_time: Optional[datetime] = None
         self.run_time = timedelta()
-        self.end_time = None
+        self.end_time: Optional[datetime] = None
 
     async def tick(self, delta: timedelta, sim: Simulation):
         """Update the action's run time as a baseline."""
@@ -55,7 +55,11 @@ class GoTo(SimAction):
         # Assume it takes one minute to move to the next location.
         if self.run_time.total_seconds() < 60:
             return
-        previous_location = self.agent.location.guid
+
+        if self.agent.location is None:
+            previous_location = "None"
+        else:
+            previous_location = self.agent.location.guid
         self.agent.location = sim.locations[EntityId(self.destination)]
 
         summary = f"Moved from {previous_location} to {self.destination} with goal {self.goal}"
@@ -73,8 +77,8 @@ class Interact(SimAction):
 
     def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
         super().__init__(agent, action_data)
-        self.item_guid: EntityId = self.parameters.get("item_guid")
-        self.interaction: str = self.parameters.get("interaction")
+        self.item_guid: EntityId = self.parameters["item_guid"]
+        self.interaction: str = self.parameters["interaction"]
         self.goal: str = self.parameters.get("goal", "None")
 
     async def tick(self, delta: timedelta, sim: Simulation):
@@ -137,7 +141,7 @@ class Reflect(SimAction):
         if self.run_time.total_seconds() < 60:
             return
             # Generate and format the conversation into a memory
-        import simulation
+        from . import simulation
 
         response = sim.sim_model.invoke(
             simulation.Format.standard_llm_context(self.agent, sim)

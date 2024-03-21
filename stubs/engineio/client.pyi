@@ -1,0 +1,26 @@
+from _typeshed import Incomplete
+
+from engineio.json import JSONDecodeError as JSONDecodeError  # type: ignore
+
+from . import base_client as base_client
+
+default_logger: Incomplete
+
+class Client(base_client.BaseClient):
+    transports: Incomplete
+    queue: Incomplete
+    def connect(
+        self,
+        url,
+        headers: Incomplete | None = None,
+        transports: Incomplete | None = None,
+        engineio_path: str = "engine.io",
+    ): ...
+    def wait(self) -> None: ...
+    def send(self, data) -> None: ...
+    state: str
+    def disconnect(self, abort: bool = False) -> None: ...
+    def start_background_task(self, target, *args, **kwargs): ...
+    def sleep(self, seconds: int = 0): ...
+    def create_queue(self, *args, **kwargs): ...
+    def create_event(self, *args, **kwargs): ...

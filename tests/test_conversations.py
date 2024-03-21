@@ -66,6 +66,7 @@ class TestConversationAgent:
 
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
+        assert response.raw_prompt is not None
         assert response.raw_prompt.startswith("Human: test_context")
 
     @pytest.mark.asyncio

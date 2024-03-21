@@ -41,7 +41,7 @@ class ActionsResponse:
     """Response from generating actions."""
 
     actions: Optional[fable_saga.GeneratedActions] = None
-    error: str = None
+    error: Optional[str] = None
     reference: Optional[str] = None
 
 
@@ -62,7 +62,7 @@ class ConversationResponse:
     """Response from generating a conversation."""
 
     conversation: Optional[GeneratedConversation] = None
-    error: str = None
+    error: Optional[str] = None
     reference: Optional[str] = None
 
 
@@ -81,7 +81,7 @@ class EmbeddingsResponse:
     embeddings: List[str] = (
         []
     )  # Actually list of List[float], but we pack 4 bytes per and then base64 encode them.
-    error: str = None
+    error: Optional[str] = None
     reference: Optional[str] = None
 
 
@@ -98,7 +98,7 @@ class AddDocumentsResponse:
     """Response from adding documents."""
 
     guids: List[str] = []
-    error: str = None
+    error: Optional[str] = None
     reference: Optional[str] = None
 
 
@@ -117,7 +117,7 @@ class FindSimilarResponse:
 
     documents: List[Document] = []
     scores: List[float] = []
-    error: str = None
+    error: Optional[str] = None
     reference: Optional[str] = None
 
 
@@ -125,7 +125,7 @@ class FindSimilarResponse:
 class ErrorResponse:
     """Generic Error Response."""
 
-    error: str = None
+    error: Optional[str] = None
 
 
 class SagaServer:
@@ -230,7 +230,7 @@ class EmbeddingsServer:
             results = await self.agent.find_similar(req.query, req.k)
             documents, scores = zip(*results)
             response = FindSimilarResponse(
-                documents=documents, scores=scores, reference=req.reference
+                documents=documents, scores=scores, reference=req.reference  # type: ignore
             )
             return response
         except Exception as e:

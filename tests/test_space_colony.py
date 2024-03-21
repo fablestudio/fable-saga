@@ -10,8 +10,8 @@ from fable_saga.demos.space_colony.simulation import (
     ActionGenerator,
     ConversationGenerator,
 )
-from test_conversations import fake_conversation_llm
-from test_saga import fake_actions_llm, FakeChatOpenAI
+from .test_conversations import fake_conversation_llm
+from .test_saga import fake_actions_llm, FakeChatOpenAI
 
 
 @pytest.fixture
@@ -129,13 +129,14 @@ class TestSimulation:
         )
         for agent in sim.agents.values():
             mock = Mock()
-            agent.tick = mock
+            # Mock the tick method, so we can check that it was called.
+            agent.__setattr__("tick", mock)
 
         await sim.tick(datetime.timedelta(seconds=59))
 
         # Check that the agents were ticked.
         for agent in sim.agents.values():
-            agent.tick.assert_called_once_with(datetime.timedelta(seconds=59), sim)
+            agent.tick.assert_called_once_with(datetime.timedelta(seconds=59), sim)  # type: ignore
 
         assert sim.sim_time == datetime.datetime(2060, 1, 1, 8, 0, 59)
 
@@ -164,6 +165,7 @@ class TestSimulation:
 
         # Everyone should still be in the crew quarters corridor, but have an action to go to the bridge.
         for agent in sim.agents.values():
+            assert agent.action is not None
             assert agent.action.skill == "go_to"
             assert agent.location.guid == "crew_quarters_corridor"
 

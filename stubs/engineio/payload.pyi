@@ -1,0 +1,9 @@
+from . import packet as packet
+from _typeshed import Incomplete
+
+class Payload:
+    max_decode_packets: int
+    packets: Incomplete
+    def __init__(self, packets: Incomplete | None = None, encoded_payload: Incomplete | None = None) -> None: ...
+    def encode(self, jsonp_index: Incomplete | None = None): ...
+    def decode(self, encoded_payload) -> None: ...

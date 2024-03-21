@@ -74,6 +74,7 @@ class TestSagaAgent:
 
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
+        assert actions.raw_prompt is not None
         assert actions.raw_prompt.startswith(
             "Human: Generate a list of different action options that your character"
             " should take next using the following skills:"

@@ -63,7 +63,7 @@ class ConversationAgent:
         max_tries=0,
         verbose=False,
         model_override: Optional[str] = None,
-    ):
+    ) -> GeneratedConversation:
         """Generate conversation for the given personas and context"""
         assert (
             persona_guids is not None and len(persona_guids) > 0

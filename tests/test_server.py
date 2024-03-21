@@ -7,11 +7,10 @@ from cattr import unstructure
 
 import fable_saga
 from fable_saga import server as saga_server
-from test_conversations import fake_conversation_llm, fake_conversation_request
-
+from .test_saga import fake_actions_llm, fake_skills, fake_actions_request
+from .test_conversations import fake_conversation_llm, fake_conversation_request
 # from fable_saga.conversations import
-from test_embeddings import fake_embedding_model, fake_documents
-from test_saga import fake_actions_llm, fake_skills, fake_actions_request
+from .test_embeddings import fake_embedding_model, fake_documents
 
 
 class TestSagaServer:
@@ -131,7 +130,7 @@ class TestEmbeddingServer:
         server = saga_server.EmbeddingsServer(embeddings=fake_embedding_model)
 
         # noinspection PyTypeChecker
-        request = saga_server.EmbeddingsRequest(texts=1)
+        request = saga_server.EmbeddingsRequest(texts=1)  # type: ignore
         response = await server.generate_embeddings(request)
         assert response.error == "'int' object is not iterable"
 
@@ -146,11 +145,11 @@ class TestEmbeddingServer:
     @pytest.mark.asyncio
     async def test_find_similar(self, fake_embedding_model, fake_documents):
         server = saga_server.EmbeddingsServer(embeddings=fake_embedding_model)
-        request = saga_server.AddDocumentsRequest(fake_documents)
-        await server.add_documents(request)
+        add_docs_request = saga_server.AddDocumentsRequest(fake_documents)
+        await server.add_documents(add_docs_request)
 
-        request = saga_server.FindSimilarRequest("test", k=2)
-        response = await server.find_similar(request)
+        find_similar_request = saga_server.FindSimilarRequest("test", k=2)
+        response = await server.find_similar(find_similar_request)
         assert response.error is None
         assert len(response.documents) == 2
         assert len(response.scores) == 2
@@ -161,7 +160,7 @@ class TestGenericHandler:
 
     @pytest.mark.asyncio
     async def test_request_missing_key_error(self):
-        missing_data = {}
+        missing_data: Dict = {}
         mock = AsyncMock()
 
         response: Dict = await saga_server.generic_handler(
@@ -242,7 +241,7 @@ class TestGenericHandler:
     @pytest.mark.asyncio
     async def test_generate_embeddings(self):
         fake_data = {"texts": ["1", "2"]}
-        expected_request = saga_server.EmbeddingsRequest(**fake_data)
+        expected_request = saga_server.EmbeddingsRequest(texts=fake_data["texts"])
 
         async def fake_processor(_):
             return saga_server.EmbeddingsResponse(embeddings=["test"])
