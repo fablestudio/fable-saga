@@ -5,6 +5,7 @@ description = "AI agents that turn skills into actions."
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
 packages = [{include = "fable_saga"}]
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -16,6 +17,7 @@ python-dateutil = "^2.8.2"
 tiktoken = "^0.5.1"
 datetime = "^5.3"
 scikit-learn = "^1.3.2"
+types-pyyaml = "^6.0.12.20240311"
 
 [tool.poetry.group.test]
 optional = true
@@ -25,6 +27,8 @@ optional = true
 # dependencies used for running tests (e.g., pytest, freezegun, response).
 pytest = "^7.3.0"
 pytest-asyncio = "^0.21.1"
+mypy = "^1.9.0"
+black = "^24.3.0"
 
 
 [tool.poetry-dynamic-versioning]
@@ -32,3 +36,28 @@ enable = true
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | stubs
+  )/
+  | poetry.lock
+  | pyproject.toml
+)
+'''
