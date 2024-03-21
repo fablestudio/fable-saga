@@ -57,5 +57,7 @@ exclude = '''
     | dist
     | stubs
   )/
+  | poetry.lock
+  | pyproject.toml
 )
 '''
