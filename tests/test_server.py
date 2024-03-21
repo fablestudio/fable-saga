@@ -9,6 +9,7 @@ import fable_saga
 from fable_saga import server as saga_server
 from .test_saga import fake_actions_llm, fake_skills, fake_actions_request
 from .test_conversations import fake_conversation_llm, fake_conversation_request
+
 # from fable_saga.conversations import
 from .test_embeddings import fake_embedding_model, fake_documents
 
@@ -191,7 +192,6 @@ class TestGenericHandler:
             response["error"]
             == "Error decoding JSON: Expecting value: line 1 column 1 (char 0)"
         )
-
 
     @pytest.mark.asyncio
     async def test_processing_exception_error(self):
