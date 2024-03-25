@@ -6,6 +6,8 @@ import pytest
 from cattr import unstructure
 
 import fable_saga
+import fable_saga.actions
+import fable_saga.conversations
 from fable_saga import server as saga_server
 from .test_saga import fake_actions_llm, fake_skills, fake_actions_request
 from .test_conversations import fake_conversation_llm, fake_conversation_request
@@ -33,7 +35,7 @@ class TestSagaServer:
         assert response.reference == fake_actions_request.reference
 
         # Sanity check that the skills are the same in our fake_llm (test data ignores the requested skills here).
-        assert isinstance(response.actions, fable_saga.GeneratedActions)
+        assert isinstance(response.actions, fable_saga.actions.GeneratedActions)
         options = response.actions.options
         assert len(options) == 2
         assert options[0].skill == "skill_2"
@@ -219,8 +221,8 @@ class TestGenericHandler:
 
         async def fake_processor(_):
             return saga_server.ActionsResponse(
-                actions=fable_saga.GeneratedActions(
-                    options=[fable_saga.Action("some_skill")], scores=[1]
+                actions=fable_saga.actions.GeneratedActions(
+                    options=[fable_saga.actions.Action("some_skill")], scores=[1]
                 )
             )
 

@@ -4,8 +4,7 @@ import pytest
 from cattr import unstructure, structure
 from langchain.chat_models.fake import FakeListChatModel
 
-import fable_saga
-import fable_saga.conversations
+from fable_saga.actions import ActionsAgent, Skill
 from fable_saga.server import ActionsRequest
 
 
@@ -22,9 +21,9 @@ def fake_actions_llm() -> FakeChatOpenAI:
 
 
 @pytest.fixture
-def fake_skills() -> list[fable_saga.Skill]:
+def fake_skills() -> list[Skill]:
     skills_data = json.load(open("examples/skills.json"))
-    skills = [structure(skill_data, fable_saga.Skill) for skill_data in skills_data]
+    skills = [structure(skill_data, Skill) for skill_data in skills_data]
     return skills
 
 
@@ -37,21 +36,25 @@ def fake_actions_request() -> ActionsRequest:
 
 class TestSagaAgent:
     def test_init(self, fake_actions_llm):
-        agent = fable_saga.SagaAgent(fake_actions_llm)
+        agent = ActionsAgent(fake_actions_llm)
         assert agent._llm == fake_actions_llm
 
     def test_actions_chain(self, fake_actions_llm):
-        agent = fable_saga.SagaAgent(fake_actions_llm)
+        agent = ActionsAgent(fake_actions_llm)
         chain = agent.generate_chain()
         assert chain.llm == fake_actions_llm
-        assert chain.prompt == agent.generate_actions_prompt
-        assert "Generate a list of different action options" in chain.prompt.template
+        assert chain.prompt == agent.prompt_template
+        assert chain.prompt
+        assert (
+            "Generate a list of different action options"
+            in chain.prompt.dict()["template"]
+        )
         assert chain.prompt.input_variables == ["context", "skills"]
 
     @pytest.mark.asyncio
     async def test_generate_actions(self, fake_actions_llm, fake_skills):
         # fake_llm.callbacks = [callback_handler]
-        agent = fable_saga.SagaAgent(fake_actions_llm)
+        agent = ActionsAgent(fake_actions_llm)
 
         # Should be using the default model
         test_model = "test_model"
@@ -93,7 +96,7 @@ class TestSagaAgent:
     @pytest.mark.asyncio
     async def test_generate_actions_retries(self, fake_actions_llm, fake_skills):
         fake_actions_llm.responses = ["malformed"] + fake_actions_llm.responses
-        agent = fable_saga.SagaAgent(fake_actions_llm)
+        agent = ActionsAgent(fake_actions_llm)
         actions = await agent.generate_actions("context", fake_skills, max_tries=1)
 
         assert actions.error is None

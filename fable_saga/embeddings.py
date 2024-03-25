@@ -47,7 +47,11 @@ class EmbeddingAgent:
             func = partial(self.add_texts, texts, metadatas, **kwargs)
             return await asyncio.get_event_loop().run_in_executor(None, func)
 
-    def __init__(self, embeddings: Embeddings = None, storage: VectorStore = None):
+    def __init__(
+        self,
+        embeddings: Optional[Embeddings] = None,
+        storage: Optional[VectorStore] = None,
+    ):
         """Initialize the agent."""
 
         # Use OpenAI by default.

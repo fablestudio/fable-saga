@@ -6,7 +6,7 @@ import cattrs
 from attr import define
 from langchain import LLMChain
 from langchain.chat_models import ChatOpenAI
-from langchain.chat_models.base import BaseChatModel
+from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import load_prompt
 
 from . import (
@@ -14,6 +14,7 @@ from . import (
     default_openai_model_temperature,
     logger,
     SagaCallbackHandler,
+    BaseSagaAgent,
 )
 
 
@@ -33,28 +34,16 @@ class GeneratedConversation:
     error: Optional[str] = None
 
 
-class ConversationAgent:
+class ConversationAgent(BaseSagaAgent):
 
-    def __init__(self, llm: BaseChatModel = None):
-        self._llm = (
-            llm
-            if llm is not None
-            else ChatOpenAI(
-                temperature=default_openai_model_temperature,
-                model_name=default_openai_model_name,
-                model_kwargs={"response_format": {"type": "json_object"}},
-            )
+    def __init__(self, llm: Optional[BaseLanguageModel] = None):
+        super().__init__(
+            prompt_template=load_prompt(
+                pathlib.Path(__file__).parent.resolve()
+                / "prompt_templates/generate_conversation.yaml"
+            ),
+            llm=llm,
         )
-        path = pathlib.Path(__file__).parent.resolve()
-        self.generate_conversation_prompt = load_prompt(
-            path / "prompt_templates/generate_conversation.yaml"
-        )
-
-    def generate_chain(self, model_override: Optional[str] = None) -> LLMChain:
-        self._llm.model_name = (
-            model_override if model_override else default_openai_model_name
-        )
-        return LLMChain(llm=self._llm, prompt=self.generate_conversation_prompt)
 
     async def generate_conversation(
         self,

@@ -8,11 +8,12 @@ import cattrs
 import socketio
 from aiohttp import web, WSMsgType
 from attr import define
-from langchain.chat_models.base import BaseLanguageModel
+from langchain.llms.base import BaseLanguageModel
 
 import fable_saga
 from fable_saga.conversations import GeneratedConversation, ConversationAgent
 from fable_saga.embeddings import Document, EmbeddingAgent
+from fable_saga.actions import Skill, ActionsAgent
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class ActionsRequest:
     """Request to generate actions."""
 
     context: str
-    skills: List[fable_saga.Skill]
+    skills: List[fable_saga.actions.Skill]
     retries: int = 0
     verbose: bool = False
     reference: Optional[str] = None
@@ -40,7 +41,7 @@ class ActionsRequest:
 class ActionsResponse:
     """Response from generating actions."""
 
-    actions: Optional[fable_saga.GeneratedActions] = None
+    actions: Optional[fable_saga.actions.GeneratedActions] = None
     error: Optional[str] = None
     reference: Optional[str] = None
 
@@ -131,9 +132,9 @@ class ErrorResponse:
 class SagaServer:
     """Server for SAGA."""
 
-    def __init__(self, llm: BaseLanguageModel = None):
+    def __init__(self, llm: Optional[BaseLanguageModel] = None):
         super().__init__()
-        self.agent = fable_saga.SagaAgent(llm)
+        self.agent = ActionsAgent(llm)
 
     async def generate_actions(self, req: ActionsRequest) -> ActionsResponse:
         # Generate actions
@@ -152,7 +153,7 @@ class SagaServer:
 
 
 class ConversationServer:
-    def __init__(self, llm: BaseLanguageModel = None):
+    def __init__(self, llm: Optional[BaseLanguageModel] = None):
         super().__init__()
         self.agent = ConversationAgent(llm)
 
