@@ -92,12 +92,6 @@ class ActionsAgent(BaseSagaAgent):
         chain = self.generate_chain(model_override)
         chain.verbose = verbose
 
-        # Set up the callback handler.
-        callback_handler = SagaCallbackHandler(
-            prompt_callback=lambda prompts: logger.info(f"Prompts: {prompts}"),
-            response_callback=lambda result: logger.info(f"Response: {result}"),
-        )
-
         retries = 0
         last_error = None
         dumped_skills = [unstructure(skill) for skill in skills]
@@ -105,10 +99,21 @@ class ActionsAgent(BaseSagaAgent):
 
         while retries <= max_tries:
             try:
-                last_response = await chain.arun(
-                    context=context, skills=json_skills, callbacks=[callback_handler]
+                response: dict = await chain.ainvoke(
+                    {"context": context, "skills": json_skills},
+                    {"callbacks": [self.callback_handler]},
                 )
-                raw_actions = json.loads(last_response)
+                raw_response = response.get("text")
+                if raw_response is None:
+                    raise Exception("No text key found in response.")
+                if len(raw_response) == 0:
+                    raise Exception("Text is empty in response.")
+                if not isinstance(raw_response, str):
+                    raise Exception(
+                        f"Text is not a string in response but {type(raw_response)}."
+                    )
+
+                raw_actions = json.loads(raw_response)
                 # If we parse the results, but didn't get any options, retry. Should be rare.
                 if raw_actions.get("options") is None:
                     raise Exception("No options key found in JSON response.")
@@ -117,9 +122,9 @@ class ActionsAgent(BaseSagaAgent):
 
                 # Convert the options to a GeneratedActions object and add metadata.
                 actions = structure(raw_actions, GeneratedActions)
-                actions.raw_prompt = callback_handler.last_prompt
-                actions.raw_response = last_response
-                actions.llm_info = callback_handler.last_model_info
+                actions.raw_prompt = self.callback_handler.last_prompt
+                actions.raw_response = raw_actions
+                actions.llm_info = self.callback_handler.last_model_info
                 actions.retries = retries
 
                 # Sort the actions by score to be helpful before returning.
@@ -136,9 +141,9 @@ class ActionsAgent(BaseSagaAgent):
             options=[],
             scores=[],
             retries=retries,
-            raw_response=callback_handler.last_generation,
-            raw_prompt=callback_handler.last_prompt,
-            llm_info=callback_handler.last_model_info,
+            raw_response=self.callback_handler.last_generation,
+            raw_prompt=self.callback_handler.last_prompt,
+            llm_info=self.callback_handler.last_model_info,
             error=f"No options found after {retries} retries."
             f" Last error: {last_error}",
         )

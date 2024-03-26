@@ -4,14 +4,10 @@ from typing import List, Optional, Dict, Any
 
 import cattrs
 from attr import define
-from langchain import LLMChain
-from langchain.chat_models import ChatOpenAI
 from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import load_prompt
 
 from . import (
-    default_openai_model_name,
-    default_openai_model_temperature,
     logger,
     SagaCallbackHandler,
     BaseSagaAgent,
@@ -62,24 +58,27 @@ class ConversationAgent(BaseSagaAgent):
         chain = self.generate_chain(model_override)
         chain.verbose = verbose
 
-        # Set up the callback handler.
-        callback_handler = SagaCallbackHandler(
-            prompt_callback=lambda prompts: logger.info(f"Prompts: {prompts}"),
-            response_callback=lambda result: logger.info(f"Response: {result}"),
-        )
-
         retries = 0
         last_error = None
         formatted_persona_guids = "[" + ", ".join(persona_guids) + "]"
 
         while retries <= max_tries:
             try:
-                last_response = await chain.arun(
-                    context=context,
-                    persona_guids=formatted_persona_guids,
-                    callbacks=[callback_handler],
+                response = await chain.ainvoke(
+                    {"context": context, "persona_guids": formatted_persona_guids},
+                    {"callbacks": [self.callback_handler]},
                 )
-                raw_conversation = json.loads(last_response)
+                raw_response = response.get("text")
+                if raw_response is None:
+                    raise Exception("No text key found in response.")
+                if len(raw_response) == 0:
+                    raise Exception("Text is empty in response.")
+                if not isinstance(raw_response, str):
+                    raise Exception(
+                        f"Text is not a string in response but {type(raw_response)}."
+                    )
+
+                raw_conversation = json.loads(raw_response)
                 # If we parse the results, but didn't get any options, retry. Should be rare.
                 if raw_conversation.get("conversation") is None:
                     raise Exception("No conversation key found in JSON response.")
@@ -88,9 +87,9 @@ class ConversationAgent(BaseSagaAgent):
 
                 # Convert the options to a GeneratedConversation object and add metadata.
                 conversation = cattrs.structure(raw_conversation, GeneratedConversation)
-                conversation.raw_prompt = callback_handler.last_prompt
-                conversation.raw_response = last_response
-                conversation.llm_info = callback_handler.last_model_info
+                conversation.raw_prompt = self.callback_handler.last_prompt
+                conversation.raw_response = raw_response
+                conversation.llm_info = self.callback_handler.last_model_info
                 conversation.retries = retries
                 return conversation
 
@@ -105,9 +104,9 @@ class ConversationAgent(BaseSagaAgent):
         return GeneratedConversation(
             conversation=[],
             retries=retries,
-            raw_response=callback_handler.last_generation,
-            raw_prompt=callback_handler.last_prompt,
-            llm_info=callback_handler.last_model_info,
+            raw_response=self.callback_handler.last_generation,
+            raw_prompt=self.callback_handler.last_prompt,
+            llm_info=self.callback_handler.last_model_info,
             error=f"No options found after {retries} retries."
             f" Last error: {last_error}",
         )

@@ -1,16 +1,14 @@
 import abc
-import json
 import logging
-import pathlib
 from typing import *
 
-from langchain import LLMChain
+from langchain.chains import LLMChain
 from langchain.callbacks.base import AsyncCallbackHandler
-from langchain.chat_models import ChatOpenAI
 from langchain.llms.base import BaseLanguageModel
-from langchain.prompts import load_prompt, BasePromptTemplate
+from langchain.prompts import BasePromptTemplate
 from langchain.schema import LLMResult
 from langchain.schema.output import Generation
+from langchain_openai import ChatOpenAI
 
 # Package wide defaults.
 default_openai_model_name = "gpt-3.5-turbo-1106"
@@ -61,12 +59,19 @@ class BaseSagaAgent(abc.ABC):
         prompt_template: BasePromptTemplate,
         llm: Optional[BaseLanguageModel] = None,
     ):
+        # Set up the callback handler.
+        self.callback_handler = SagaCallbackHandler(
+            prompt_callback=lambda prompts: logger.info(f"Prompts: {prompts}"),
+            response_callback=lambda result: logger.info(f"Response: {result}"),
+        )
+
         self._llm: BaseLanguageModel = (
             llm
             if llm is not None
             else ChatOpenAI(
                 temperature=default_openai_model_temperature,
                 model_kwargs={"response_format": {"type": "json_object"}},
+                callbacks=[self.callback_handler],
             )
         )
         self.prompt_template = prompt_template

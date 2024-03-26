@@ -12,7 +12,7 @@ from fable_saga.demos.space_colony.simulation import (
     ConversationGenerator,
 )
 from .test_conversations import fake_conversation_llm
-from .test_saga import fake_actions_llm, FakeChatOpenAI
+from .test_actions import fake_actions_llm, FakeChatOpenAI
 
 
 @pytest.fixture

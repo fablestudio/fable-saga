@@ -1,11 +1,10 @@
 import json
-from typing import Optional, List
-from unittest import mock
+from typing import List
 
 import pytest
 from cattrs import structure
-from langchain.llms.fake import FakeListLLM
 from langchain.llms.base import BaseLanguageModel
+from langchain.llms.fake import FakeListLLM
 
 import fable_saga
 import fable_saga.conversations
@@ -49,7 +48,6 @@ class TestConversationAgent:
 
     @pytest.mark.asyncio
     async def test_generate_conversation_not_openai(self, fake_conversation_llm):
-        # fake_llm.callbacks = [callback_handler]
         agent = fable_saga.conversations.ConversationAgent(fake_conversation_llm)
 
         # Should be using the default model
