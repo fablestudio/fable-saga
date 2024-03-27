@@ -1,23 +1,29 @@
 import json
+from typing import List
 
 import pytest
 from cattrs import structure
-from langchain.chat_models.fake import FakeListChatModel
+from langchain.llms.base import BaseLanguageModel
+from langchain.llms.fake import FakeListLLM
 
 import fable_saga
 import fable_saga.conversations
 from fable_saga.server import ConversationRequest
 
 
-class FakeChatOpenAI(FakeListChatModel):
-    model_name: str = "model_name_default"
+# Create a fake OpenAI model that inherits from the FakeListLLM and ChatOpenAI classes.
+class FakeOpenAI(FakeListLLM, BaseLanguageModel):
+    model_name = "unchanged"
+
+    def __init__(self, responses: List[str], sleep: float = 0):
+        FakeListLLM.__init__(self, responses=responses, sleep=sleep)
 
 
 @pytest.fixture
 def fake_conversation_llm():
     conversations = json.load(open("examples/generated_conversation.json"))
     responses = [json.dumps(conversation) for conversation in conversations]
-    llm = FakeChatOpenAI(responses=responses, sleep=0.1)
+    llm = FakeOpenAI(responses=responses, sleep=0.1)
     return llm
 
 
@@ -33,16 +39,15 @@ class TestConversationAgent:
         agent = fable_saga.conversations.ConversationAgent(fake_conversation_llm)
         chain = agent.generate_chain()
         assert chain.llm == fake_conversation_llm
-        assert chain.prompt == agent.generate_conversation_prompt
+        assert chain.prompt == agent.prompt_template
         assert (
             "Generate a conversation by writing lines of dialogue"
-            in chain.prompt.template
+            in chain.prompt.dict()["template"]
         )
         assert chain.prompt.input_variables == ["context", "persona_guids"]
 
     @pytest.mark.asyncio
-    async def test_generate_conversation(self, fake_conversation_llm):
-        # fake_llm.callbacks = [callback_handler]
+    async def test_generate_conversation_not_openai(self, fake_conversation_llm):
         agent = fable_saga.conversations.ConversationAgent(fake_conversation_llm)
 
         # Should be using the default model
@@ -67,7 +72,7 @@ class TestConversationAgent:
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
         assert response.raw_prompt is not None
-        assert response.raw_prompt.startswith("Human: test_context")
+        assert response.raw_prompt.startswith("test_context\n\nGenerate a conversation")
 
     @pytest.mark.asyncio
     async def test_generate_conversation_retries(self, fake_conversation_llm):

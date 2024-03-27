@@ -4,7 +4,7 @@ import typing
 from datetime import timedelta, datetime
 from typing import Dict, Any, Optional
 
-import fable_saga
+from fable_saga.actions import Action
 from fable_saga.demos.space_colony import sim_models
 from fable_saga.demos.space_colony.sim_models import EntityId
 
@@ -15,9 +15,9 @@ if typing.TYPE_CHECKING:
 class SimAction:
     """Base class for all actions."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         self.agent = agent
-        self.action_data: fable_saga.Action = action_data
+        self.action_data: Action = action_data
         self.skill: str = action_data.skill
         self.parameters: Dict[str, Any] = action_data.parameters
         self.start_time: Optional[datetime] = None
@@ -45,7 +45,7 @@ class SimAction:
 class GoTo(SimAction):
     """Move to a new location."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         super().__init__(agent, action_data)
         self.destination: EntityId = self.parameters.get("destination", "")
         self.goal: str = self.parameters.get("goal", "None")
@@ -75,7 +75,7 @@ class GoTo(SimAction):
 class Interact(SimAction):
     """Interact with an object using a specific interaction."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         super().__init__(agent, action_data)
         self.item_guid: EntityId = self.parameters["item_guid"]
         self.interaction: str = self.parameters["interaction"]
@@ -101,7 +101,7 @@ class Interact(SimAction):
 class Wait(SimAction):
     """Wait for a period of time."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         super().__init__(agent, action_data)
         self.duration: int = int(self.parameters.get("duration", 0))
         self.remaining_time: timedelta = timedelta(minutes=self.duration)
@@ -129,7 +129,7 @@ class Wait(SimAction):
 class Reflect(SimAction):
     """Reflect on something and synthesize a new idea."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         super().__init__(agent, action_data)
         self.focus: str = self.parameters.get("focus", "")
         self.result: str = self.parameters.get("result", "")
@@ -167,7 +167,7 @@ class Reflect(SimAction):
 class ConverseWith(SimAction):
     """Converse with another persona."""
 
-    def __init__(self, agent: SimAgent, action_data: fable_saga.Action):
+    def __init__(self, agent: SimAgent, action_data: Action):
         super().__init__(agent, action_data)
 
         self.persona_guid = self.parameters[

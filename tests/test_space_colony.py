@@ -5,18 +5,19 @@ import pytest
 
 import fable_saga
 import fable_saga.conversations
+import fable_saga.actions
 from fable_saga.demos.space_colony import simulation
 from fable_saga.demos.space_colony.simulation import (
     ActionGenerator,
     ConversationGenerator,
 )
 from .test_conversations import fake_conversation_llm
-from .test_saga import fake_actions_llm, FakeChatOpenAI
+from .test_actions import fake_actions_llm, FakeChatOpenAI
 
 
 @pytest.fixture
 def fake_saga_agent(fake_actions_llm):
-    return fable_saga.SagaAgent(fake_actions_llm)
+    return fable_saga.actions.ActionsAgent(fake_actions_llm)
 
 
 @pytest.fixture
@@ -123,7 +124,7 @@ class TestSimulation:
         )
 
         sim = simulation.Simulation(
-            ActionGenerator(fable_saga.SagaAgent(goto_bridge_llm)),
+            ActionGenerator(fable_saga.actions.ActionsAgent(goto_bridge_llm)),
             ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
@@ -154,7 +155,7 @@ class TestSimulation:
         )
 
         sim = simulation.Simulation(
-            ActionGenerator(fable_saga.SagaAgent(goto_bridge_llm)),
+            ActionGenerator(fable_saga.actions.ActionsAgent(goto_bridge_llm)),
             ConversationGenerator(fake_conversation_llm),
             fake_chat_openai,
         )

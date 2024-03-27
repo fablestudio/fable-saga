@@ -8,7 +8,6 @@ import numpy
 import pytest
 from langchain.embeddings.fake import DeterministicFakeEmbedding
 from langchain.schema.embeddings import Embeddings
-from langchain.vectorstores import SKLearnVectorStore
 
 import fable_saga.embeddings as saga_embed
 
@@ -16,6 +15,7 @@ import fable_saga.embeddings as saga_embed
 @pytest.fixture
 def fake_embedding_model():
     class FakeAsyncEmbeddingModel(DeterministicFakeEmbedding):
+
         async def aembed_documents(self, texts: List[str]):
             func = partial(self.embed_documents, texts)
             return await asyncio.get_event_loop().run_in_executor(None, func)
@@ -23,6 +23,9 @@ def fake_embedding_model():
         async def aembed_query(self, text: str):
             func = partial(self.embed_query, text)
             return await asyncio.get_event_loop().run_in_executor(None, func)
+
+        def _select_relevance_score_fn(self, query: str):
+            return lambda x: 0.5
 
     return FakeAsyncEmbeddingModel(size=1536)
 
@@ -39,8 +42,7 @@ class TestEmbeddingsAgent:
     def test_init(self, fake_embedding_model: Embeddings):
         agent = saga_embed.EmbeddingAgent(fake_embedding_model)
         assert agent._embeddings_model == fake_embedding_model
-        # Check that the default storage is SKLearnVectorStore (though it's a custom subclass to make async work).
-        assert isinstance(agent._storage, SKLearnVectorStore)
+        assert isinstance(agent._storage, saga_embed.SimpleVectorStore)
 
     @pytest.mark.asyncio
     async def test_embed_documents(
@@ -86,16 +88,16 @@ class TestEmbeddingsAgent:
             fake_documents[idx].metadata["id"] = new_id
 
         # Perform a real search (with fake embeddings).
-        similar = await agent.find_similar("query", k=2)
+        similar = await agent.find_similar(fake_documents[1].text, k=2)
         assert len(similar) == 2
 
         # Check the (fake) similarity scores. Embeddings are fake but deterministic, so we can check the scores here.
         doc, score = similar[0]
         assert doc.text == fake_documents[1].text
         assert doc.metadata == fake_documents[1].metadata
-        assert score == pytest.approx(0.3606, rel=1e-3)
+        assert score == pytest.approx(1.0, rel=1e-3)
 
         doc, score = similar[1]
-        assert doc.text == fake_documents[2].text
-        assert doc.metadata == fake_documents[2].metadata
-        assert score == pytest.approx(0.3586, rel=1e-3)
+        assert doc.text == fake_documents[0].text
+        assert doc.metadata == fake_documents[0].metadata
+        assert score == pytest.approx(0.5098, rel=1e-3)

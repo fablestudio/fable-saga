@@ -13,6 +13,7 @@ from attr import define
 
 import fable_saga
 import fable_saga.conversations
+from fable_saga.actions import Action, GeneratedActions, Skill, ActionsAgent
 from fable_saga.demos.space_colony import sim_models
 from fable_saga.demos.space_colony.sim_actions import (
     GoTo,
@@ -55,12 +56,12 @@ class SimAgent:
     guid: str
     persona: sim_models.Persona
     location: sim_models.Location
-    skills: List[fable_saga.Skill] = []
+    skills: List[Skill] = []
     action: Optional[SimAction] = None
     memories: MemoryStore = MemoryStore([])
-    choose_action_callback: Optional[
-        Callable[[fable_saga.GeneratedActions], Awaitable[None]]
-    ] = None
+    choose_action_callback: Optional[Callable[[GeneratedActions], Awaitable[None]]] = (
+        None
+    )
 
     async def tick_action(self, delta: timedelta, sim: "Simulation"):
         """Tick the current action to advance and/or complete it."""
@@ -71,7 +72,7 @@ class SimAgent:
     async def tick(self, delta: timedelta, sim: "Simulation"):
         """Tick the agent to advance its current action or choose a new one."""
 
-        async def choose_action(actions: fable_saga.GeneratedActions):
+        async def choose_action(actions: GeneratedActions):
             """Choose an action from the list by choosing a number."""
             if self.choose_action_callback is not None:
                 return await self.choose_action_callback(actions)
@@ -140,12 +141,12 @@ class Simulation:
             general_purpose_llm
             if general_purpose_llm is not None
             else fable_saga.ChatOpenAI(
-                model_name=fable_saga.default_openai_model_name,
                 temperature=0.9,
                 max_tokens=100,
                 verbose=True,
             )
         )
+        self.sim_model.model_name = fable_saga.default_openai_model_name
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -175,7 +176,7 @@ class Simulation:
         with open(path / "resources/skills.yaml", "r") as f:
             skills = []
             for skill_data in yaml.load(f, Loader=yaml.FullLoader):
-                skills.append(cattrs.structure(skill_data, fable_saga.Skill))
+                skills.append(cattrs.structure(skill_data, Skill))
             for agent in self.agents.values():
                 agent.skills = skills
 
@@ -190,7 +191,7 @@ class Simulation:
 
 class ActionGenerator:
 
-    def __init__(self, saga_agent: fable_saga.SagaAgent):
+    def __init__(self, saga_agent: ActionsAgent):
         self.saga_agent = saga_agent
 
     async def generate_action_options(
@@ -200,7 +201,7 @@ class ActionGenerator:
         retries=0,
         verbose=False,
         model_override: Optional[str] = None,
-    ) -> fable_saga.GeneratedActions:
+    ) -> GeneratedActions:
         """Generate actions for this agent using the SAGA agent."""
 
         print(f"Generating actions for {sim_agent.persona.id()} ...")
@@ -214,7 +215,7 @@ class ActionGenerator:
         )
 
     @staticmethod
-    def sim_action_factory(sim_agent: SimAgent, action: fable_saga.Action):
+    def sim_action_factory(sim_agent: SimAgent, action: Action):
         """Handle the chosen action."""
         if action.skill == "go_to":
             return GoTo(sim_agent, action)
@@ -356,12 +357,12 @@ class Format:
 async def main():
     """The main entry point for the simulation."""
     sim: Simulation = Simulation(
-        ActionGenerator(fable_saga.SagaAgent()),
+        ActionGenerator(ActionsAgent()),
         ConversationGenerator(fable_saga.conversations.ConversationAgent()),
     )
     sim.load()
 
-    async def list_actions(actions: fable_saga.GeneratedActions):
+    async def list_actions(actions: GeneratedActions):
         """List the actions byt printing to the console."""
         for i, action in enumerate(actions.options):
             output = f"#{i} -- {action.skill} ({actions.scores[i]})\n"
