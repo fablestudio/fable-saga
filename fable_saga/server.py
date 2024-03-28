@@ -1,8 +1,21 @@
+import abc
 import base64
 import json
 import logging
 import struct
-from typing import List, Optional, Type, Dict, Union
+import typing
+from abc import ABC
+from typing import (
+    List,
+    Optional,
+    Type,
+    Dict,
+    Union,
+    TypeVar,
+    Generic,
+    Callable,
+    Awaitable,
+)
 
 import cattrs
 import socketio
@@ -15,6 +28,10 @@ from fable_saga.conversations import GeneratedConversation, ConversationAgent
 from fable_saga.embeddings import Document, EmbeddingAgent
 from fable_saga.actions import Skill, ActionsAgent
 
+
+TReq = TypeVar("TReq")
+TResp = TypeVar("TResp")
+
 logger = logging.getLogger(__name__)
 
 # module level converter to convert between objects and dicts.
@@ -23,6 +40,15 @@ converter = cattrs.Converter(forbid_extra_keys=False)
 """
 Sets up a server that can be used to generate actions for SAGA. Either HTTP or socketio can be used.
 """
+
+throw_exceptions = False
+
+
+def get_generic_types(obj):
+    for base in getattr(obj, "__orig_bases__", []):
+        if hasattr(base, "__args__"):
+            return base.__args__
+    return None
 
 
 @define(slots=True)
@@ -129,142 +155,132 @@ class ErrorResponse:
     error: Optional[str] = None
 
 
-class SagaServer:
-    """Server for SAGA."""
+class BaseEndpoint(Generic[TReq, TResp]):
+    """Base class for all endpoints."""
 
-    def __init__(self, llm: Optional[BaseLanguageModel] = None):
-        super().__init__()
-        self.agent = ActionsAgent(llm)
-
-    async def generate_actions(self, req: ActionsRequest) -> ActionsResponse:
-        # Generate actions
-        try:
-            assert isinstance(req, ActionsRequest), f"Invalid request type: {type(req)}"
-            actions = await self.agent.generate_actions(
-                req.context, req.skills, req.retries, req.verbose, req.model
-            )
-            response = ActionsResponse(actions=actions, reference=req.reference)
-            if actions.error is not None:
-                response.error = f"Generation Error: {actions.error}"
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return ActionsResponse(actions=None, error=str(e), reference=req.reference)
+    @abc.abstractmethod
+    async def handle_request(self, request: TReq) -> TResp:
+        raise NotImplementedError
 
 
-class ConversationServer:
-    def __init__(self, llm: Optional[BaseLanguageModel] = None):
-        super().__init__()
-        self.agent = ConversationAgent(llm)
+class ActionsEndpoint(BaseEndpoint[ActionsRequest, ActionsResponse]):
+    """Generate an ActionsResponse (action options) from an ActionsRequest (context and skills)."""
 
-    async def generate_conversation(
-        self, req: ConversationRequest
-    ) -> ConversationResponse:
-        # Generate conversation
-        try:
-            assert isinstance(
-                req, ConversationRequest
-            ), f"Invalid request type: {type(req)}"
-            conversation = await self.agent.generate_conversation(
-                req.persona_guids, req.context, req.retries, req.verbose, req.model
-            )
-            response = ConversationResponse(
-                conversation=conversation, reference=req.reference
-            )
-            if conversation.error is not None:
-                response.error = f"Generation Error: {conversation.error}"
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return ConversationResponse(
-                conversation=None, error=str(e), reference=req.reference
-            )
+    def __init__(self, agent: ActionsAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: ActionsRequest) -> ActionsResponse:
+        actions = await self.agent.generate_actions(
+            req.context, req.skills, req.retries, req.verbose, req.model
+        )
+        response = ActionsResponse(actions=actions, reference=req.reference)
+        if actions.error is not None:
+            response.error = f"Generation Error: {actions.error}"
+        return response
 
 
-class EmbeddingsServer:
-    """Server for Embeddings."""
+class ConversationEndpoint(BaseEndpoint[ConversationRequest, ConversationResponse]):
+    def __init__(self, agent: ConversationAgent):
+        self.agent = agent
 
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.agent = EmbeddingAgent(**kwargs)
+    async def handle_request(self, req: ConversationRequest) -> ConversationResponse:
+        conversation = await self.agent.generate_conversation(
+            req.persona_guids, req.context, req.retries, req.verbose, req.model
+        )
+        response = ConversationResponse(
+            conversation=conversation, reference=req.reference
+        )
+        if conversation.error is not None:
+            response.error = f"Generation Error: {conversation.error}"
+        return response
 
-    async def generate_embeddings(self, req: EmbeddingsRequest) -> EmbeddingsResponse:
-        # Generate embeddings
-        try:
-            assert isinstance(
-                req, EmbeddingsRequest
-            ), f"Invalid request type: {type(req)}"
-            embeddings = await self.agent.embed_documents(req.texts)
-            packed_embeddings = [
-                base64.b64encode(struct.pack("!%sf" % len(e), *e)).decode("ascii")
-                for e in embeddings
-            ]
-            response = EmbeddingsResponse(
-                embeddings=packed_embeddings, reference=req.reference
-            )
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return EmbeddingsResponse(
-                embeddings=[], error=str(e), reference=req.reference
-            )
 
-    async def add_documents(self, req: AddDocumentsRequest) -> AddDocumentsResponse:
-        # Add documents
-        try:
-            assert isinstance(
-                req, AddDocumentsRequest
-            ), f"Invalid request type: {type(req)}"
-            guids = await self.agent.store_documents(req.documents)
-            response = AddDocumentsResponse(guids=guids, reference=req.reference)
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return AddDocumentsResponse(guids=[], error=str(e), reference=req.reference)
+class GenerateEmbeddingsEndpoint(BaseEndpoint[EmbeddingsRequest, EmbeddingsResponse]):
 
-    async def find_similar(self, req: FindSimilarRequest) -> FindSimilarResponse:
-        # Find similar documents
-        try:
-            assert isinstance(
-                req, FindSimilarRequest
-            ), f"Invalid request type: {type(req)}"
-            results = await self.agent.find_similar(req.query, req.k)
-            documents, scores = zip(*results)
-            response = FindSimilarResponse(
-                documents=documents, scores=scores, reference=req.reference  # type: ignore
-            )
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return FindSimilarResponse(
-                documents=[], scores=[], error=str(e), reference=req.reference
-            )
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: EmbeddingsRequest) -> EmbeddingsResponse:
+        embeddings = await self.agent.embed_documents(req.texts)
+        packed_embeddings = [
+            base64.b64encode(struct.pack("!%sf" % len(e), *e)).decode("ascii")
+            for e in embeddings
+        ]
+        response = EmbeddingsResponse(
+            embeddings=packed_embeddings, reference=req.reference
+        )
+        return response
+
+
+class AddDocumentsEndpoint(BaseEndpoint[AddDocumentsRequest, AddDocumentsResponse]):
+
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: AddDocumentsRequest) -> AddDocumentsResponse:
+        guids = await self.agent.store_documents(req.documents)
+        response = AddDocumentsResponse(guids=guids, reference=req.reference)
+        return response
+
+
+class FindSimilarEndpoint(BaseEndpoint[FindSimilarRequest, FindSimilarResponse]):
+
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: FindSimilarRequest) -> FindSimilarResponse:
+        results = await self.agent.find_similar(req.query, req.k)
+        documents, scores = zip(*results)
+        response = FindSimilarResponse(
+            documents=documents, scores=scores, reference=req.reference  # type: ignore
+        )
+        return response
 
 
 async def generic_handler(
-    data: Union[str, Dict], request_type: Type, process_function, response_type: Type
-):
+    data: Union[str, Dict], endpoint: BaseEndpoint[TReq, TResp]
+) -> Dict[str, typing.Any]:
+    if not isinstance(endpoint, BaseEndpoint):
+        raise ValueError(
+            f"Invalid endpoint: {endpoint}: Does not inherit from BaseEndpoint"
+        )
+    type_hints = get_generic_types(type(endpoint))
+    assert (
+        len(type_hints) == 2
+    ), f"Invalid endpoint Generic type hints for '{type(endpoint)}': Should be a TReq and TResp."
+    t_req, t_resp = type_hints
     try:
         if isinstance(data, str):
             data = json.loads(data)
-        # noinspection PyTypeChecker
-        request = converter.structure(data, request_type)
-        result = await process_function(request)
-        assert isinstance(result, response_type), (
-            f"Invalid response type: {type(result)},"
-            f" expected instance of {response_type}"
+        request = converter.structure(data, t_req)
+        assert isinstance(request, t_req), (
+            f"Invalid request type: {type(request)}," f" expected instance of {t_req}"
+        )
+        result = await endpoint.handle_request(request)
+
+        assert isinstance(result, t_resp), (
+            f"Invalid response type: {type(result)}," f" expected instance of {t_resp}"
         )
         response = converter.unstructure(result)
         logger.debug(f"Response: {response}")
         return response
     except json.decoder.JSONDecodeError as e:
         error = f"Error decoding JSON: {str(e)}"
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
     except cattrs.errors.ClassValidationError as e:
         error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
     except Exception as e:
         error = f"Error processing request: {str(e)}"
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
     logger.error(error)
-    response = response_type(error=error)
+    response = t_resp(error=error)
     output = converter.unstructure(response)
     return output
 
@@ -291,9 +307,9 @@ if __name__ == "__main__":
 
     # Create common server objects
     # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
-    saga_server = SagaServer()
-    embeddings_server = EmbeddingsServer()
-    conversation_server = ConversationServer()
+    actions_agent = ActionsAgent()
+    conversation_agent = ConversationAgent()
+    embedding_agent = EmbeddingAgent()
 
     app = web.Application()
 
@@ -322,9 +338,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                ActionsRequest,
-                saga_server.generate_actions,
-                ActionsResponse,
+                ActionsEndpoint(actions_agent),
             )
 
         @sio.on("generate-conversation")
@@ -332,9 +346,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                ConversationRequest,
-                conversation_server.generate_conversation,
-                ConversationResponse,
+                ConversationEndpoint(conversation_agent),
             )
 
         @sio.on("generate-embeddings")
@@ -342,9 +354,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                EmbeddingsRequest,
-                embeddings_server.generate_embeddings,
-                EmbeddingsResponse,
+                GenerateEmbeddingsEndpoint(embedding_agent),
             )
 
         @sio.on("add-documents")
@@ -352,9 +362,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                AddDocumentsRequest,
-                embeddings_server.add_documents,
-                AddDocumentsResponse,
+                AddDocumentsEndpoint(embedding_agent),
             )
 
         @sio.on("find-similar")
@@ -362,9 +370,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                FindSimilarRequest,
-                embeddings_server.find_similar,
-                FindSimilarResponse,
+                FindSimilarEndpoint(embedding_agent),
             )
 
     # Create HTTP server
@@ -382,9 +388,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                ActionsRequest,
-                saga_server.generate_actions,
-                ActionsResponse,
+                ActionsEndpoint(actions_agent),
             )
             return web.json_response(response)
 
@@ -395,9 +399,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                ConversationRequest,
-                conversation_server.generate_conversation,
-                ConversationResponse,
+                ConversationEndpoint(conversation_agent),
             )
             return web.json_response(response)
 
@@ -408,9 +410,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                EmbeddingsRequest,
-                embeddings_server.generate_embeddings,
-                EmbeddingsResponse,
+                GenerateEmbeddingsEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
@@ -421,9 +421,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                AddDocumentsRequest,
-                embeddings_server.add_documents,
-                AddDocumentsResponse,
+                AddDocumentsEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
@@ -434,9 +432,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                FindSimilarRequest,
-                embeddings_server.find_similar,
-                FindSimilarResponse,
+                FindSimilarEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
@@ -470,37 +466,27 @@ if __name__ == "__main__":
                                 if request_type == "generate-actions":
                                     response = await generic_handler(
                                         request_data,
-                                        ActionsRequest,
-                                        saga_server.generate_actions,
-                                        ActionsResponse,
+                                        ActionsEndpoint(actions_agent),
                                     )
                                 elif request_type == "generate-conversation":
                                     response = await generic_handler(
                                         request_data,
-                                        ConversationRequest,
-                                        conversation_server.generate_conversation,
-                                        ConversationResponse,
+                                        ConversationEndpoint(conversation_agent),
                                     )
                                 elif request_type == "generate-embeddings":
                                     response = await generic_handler(
                                         request_data,
-                                        EmbeddingsRequest,
-                                        embeddings_server.generate_embeddings,
-                                        EmbeddingsResponse,
+                                        GenerateEmbeddingsEndpoint(embedding_agent),
                                     )
                                 elif request_type == "add-documents":
                                     response = await generic_handler(
                                         request_data,
-                                        AddDocumentsRequest,
-                                        embeddings_server.add_documents,
-                                        AddDocumentsResponse,
+                                        AddDocumentsEndpoint(embedding_agent),
                                     )
                                 elif request_type == "find-similar":
                                     response = await generic_handler(
                                         request_data,
-                                        FindSimilarRequest,
-                                        embeddings_server.find_similar,
-                                        FindSimilarResponse,
+                                        FindSimilarEndpoint(embedding_agent),
                                     )
                                 else:
                                     error = f"Invalid request-type: {request_type}"

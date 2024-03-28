@@ -1,33 +1,10 @@
 import json
 
 import pytest
-from cattr import unstructure, structure
+from cattr import unstructure
 
-from fable_saga.actions import ActionsAgent, Skill
-from fable_saga.server import ActionsRequest
-from . import FakeChatOpenAI
-
-
-@pytest.fixture
-def fake_actions_llm() -> FakeChatOpenAI:
-    actions = json.load(open("examples/generated_actions.json"))
-    responses = [json.dumps(action) for action in actions]
-    llm = FakeChatOpenAI(responses=responses, sleep=0.1)
-    return llm
-
-
-@pytest.fixture
-def fake_skills() -> list[Skill]:
-    skills_data = json.load(open("examples/skills.json"))
-    skills = [structure(skill_data, Skill) for skill_data in skills_data]
-    return skills
-
-
-@pytest.fixture
-def fake_actions_request() -> ActionsRequest:
-    request_data = json.load(open("examples/actions_request.json"))
-    req = structure(request_data, ActionsRequest)
-    return req
+from fable_saga.actions import ActionsAgent
+from . import fake_actions_llm, fake_skills
 
 
 class TestSagaAgent:
@@ -75,7 +52,7 @@ class TestSagaAgent:
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
         assert actions.raw_prompt is not None
         assert actions.raw_prompt.startswith(
-            "Human: Generate a list of different action options that your character"
+            "Generate a list of different action options that your character"
             " should take next using the following skills:"
         )
 
