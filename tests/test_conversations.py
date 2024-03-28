@@ -1,3 +1,4 @@
+# noinspection PyPackageRequirements
 import pytest
 
 import fable_saga

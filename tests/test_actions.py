@@ -1,5 +1,6 @@
 import json
 
+# noinspection PyPackageRequirements
 import pytest
 from cattr import unstructure
 

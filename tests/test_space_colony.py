@@ -1,6 +1,7 @@
 import datetime
 from unittest.mock import Mock
 
+# noinspection PyPackageRequirements
 import pytest
 
 import fable_saga

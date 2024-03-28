@@ -4,30 +4,24 @@ import json
 import logging
 import struct
 import typing
-from abc import ABC
 from typing import (
     List,
     Optional,
-    Type,
     Dict,
     Union,
     TypeVar,
     Generic,
-    Callable,
-    Awaitable,
 )
 
 import cattrs
 import socketio
 from aiohttp import web, WSMsgType
 from attr import define
-from langchain.llms.base import BaseLanguageModel
 
 import fable_saga
+from fable_saga.actions import Skill, ActionsAgent
 from fable_saga.conversations import GeneratedConversation, ConversationAgent
 from fable_saga.embeddings import Document, EmbeddingAgent
-from fable_saga.actions import Skill, ActionsAgent
-
 
 TReq = TypeVar("TReq")
 TResp = TypeVar("TResp")
@@ -44,8 +38,21 @@ Sets up a server that can be used to generate actions for SAGA. Either HTTP or s
 throw_exceptions = False
 
 
-def get_generic_types(obj):
-    for base in getattr(obj, "__orig_bases__", []):
+def get_generic_types(cls_obj):
+    """Get the generic types of an object. This is used to get the TReq and TResp types of an endpoint.
+    For example, if the object is an instance of ActionsEndpoint, then this will return (ActionsRequest, ActionsResponse)
+    because ActionsEndpoint is a subclass of BaseEndpoint[ActionsRequest, ActionsResponse].
+
+    Note that this is a bit of a hack, and may not work for all cases, like Mock objects.
+
+    Args:
+        cls_obj: The class object to get the generic types of.
+
+    Returns:
+        Tuple of the generic types of the class object.
+
+    """
+    for base in getattr(cls_obj, "__orig_bases__", []):
         if hasattr(base, "__args__"):
             return base.__args__
     return None
@@ -180,6 +187,8 @@ class ActionsEndpoint(BaseEndpoint[ActionsRequest, ActionsResponse]):
 
 
 class ConversationEndpoint(BaseEndpoint[ConversationRequest, ConversationResponse]):
+    """Generate a ConversationResponse from a ConversationRequest."""
+
     def __init__(self, agent: ConversationAgent):
         self.agent = agent
 
@@ -196,6 +205,7 @@ class ConversationEndpoint(BaseEndpoint[ConversationRequest, ConversationRespons
 
 
 class GenerateEmbeddingsEndpoint(BaseEndpoint[EmbeddingsRequest, EmbeddingsResponse]):
+    """Generate an EmbeddingsResponse from an EmbeddingsRequest."""
 
     def __init__(self, agent: EmbeddingAgent):
         self.agent = agent
@@ -213,6 +223,7 @@ class GenerateEmbeddingsEndpoint(BaseEndpoint[EmbeddingsRequest, EmbeddingsRespo
 
 
 class AddDocumentsEndpoint(BaseEndpoint[AddDocumentsRequest, AddDocumentsResponse]):
+    """Add documents to the embedding agent."""
 
     def __init__(self, agent: EmbeddingAgent):
         self.agent = agent
@@ -224,6 +235,7 @@ class AddDocumentsEndpoint(BaseEndpoint[AddDocumentsRequest, AddDocumentsRespons
 
 
 class FindSimilarEndpoint(BaseEndpoint[FindSimilarRequest, FindSimilarResponse]):
+    """Find similar documents to a query."""
 
     def __init__(self, agent: EmbeddingAgent):
         self.agent = agent
@@ -240,24 +252,41 @@ class FindSimilarEndpoint(BaseEndpoint[FindSimilarRequest, FindSimilarResponse])
 async def generic_handler(
     data: Union[str, Dict], endpoint: BaseEndpoint[TReq, TResp]
 ) -> Dict[str, typing.Any]:
+    """Wraps all requests in a generic way to handle errors and exceptions in a consistent, type-safe manner
+    but uses the defined endpoint to handle the request itself.
+
+    Args:
+        data: Basically the request data is the raw JSON string of the incoming request. It is converted to a dictionary
+            and then to the request object to validate it.
+        endpoint: The endpoint to handle the request. It should be an instance of BaseEndpoint.
+    Returns:
+        The response type converted back into a dictionary for sending back to the client.
+    """
     if not isinstance(endpoint, BaseEndpoint):
         raise ValueError(
             f"Invalid endpoint: {endpoint}: Does not inherit from BaseEndpoint"
         )
+    # Get the generic types of the endpoint to validate the request and response. This is a bit of a hack and doesn't
+    # work for all cases, like Mocked objects.
     type_hints = get_generic_types(type(endpoint))
+    # Check that the endpoint has the correct generic types.
     assert (
         len(type_hints) == 2
     ), f"Invalid endpoint Generic type hints for '{type(endpoint)}': Should be a TReq and TResp."
     t_req, t_resp = type_hints
     try:
+        # Convert the data to the request type and validate it.
         if isinstance(data, str):
             data = json.loads(data)
         request = converter.structure(data, t_req)
         assert isinstance(request, t_req), (
             f"Invalid request type: {type(request)}," f" expected instance of {t_req}"
         )
+
+        # Pass the request to the endpoint to actually handle it.
         result = await endpoint.handle_request(request)
 
+        # Validate the response and convert it back to a dictionary.
         assert isinstance(result, t_resp), (
             f"Invalid response type: {type(result)}," f" expected instance of {t_resp}"
         )
@@ -279,13 +308,13 @@ async def generic_handler(
         logger.exception(error)
         if throw_exceptions:
             raise e
-    logger.error(error)
     response = t_resp(error=error)
     output = converter.unstructure(response)
     return output
 
 
 if __name__ == "__main__":
+    """Run the server directly, with command line arguments and options for different server types."""
 
     # Parse command line arguments
     import argparse
@@ -305,15 +334,17 @@ if __name__ == "__main__":
     parser.add_argument("--cors", type=str, default=None, help="CORS origin")
     args = parser.parse_args()
 
-    # Create common server objects
-    # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
+    # Create common agents to be used by the endpoints.
     actions_agent = ActionsAgent()
     conversation_agent = ConversationAgent()
     embedding_agent = EmbeddingAgent()
 
     app = web.Application()
 
-    # Create socketio server
+    ########################################################
+    # SocketIO Server
+    ########################################################
+
     if args.type == "socketio":
         if args.cors is None:
             args.cors = "*"
@@ -373,7 +404,9 @@ if __name__ == "__main__":
                 FindSimilarEndpoint(embedding_agent),
             )
 
-    # Create HTTP server
+    ########################################################
+    # HTTP (REST) Server
+    ########################################################
     elif args.type == "http":
         """HTTP server
         Make a POST request to the server with a JSON body message (See README.md for details).
@@ -439,6 +472,9 @@ if __name__ == "__main__":
         # Listen for POST requests on the root path
         app.add_routes([web.post("/", generate_actions)])
 
+    ########################################################
+    # Websockets Server
+    ########################################################
     elif args.type == "websockets":
 
         from aiohttp import WSMessage
@@ -513,6 +549,7 @@ if __name__ == "__main__":
         raise ValueError("Invalid server type: " + args.type)
 
     # Setup logging
+    # noinspection SpellCheckingInspection
     formatter = logging.Formatter(
         "%(asctime)s - saga.server - %(levelname)s - %(message)s"
     )

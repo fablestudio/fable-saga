@@ -2,9 +2,10 @@ import asyncio
 import json
 from functools import partial
 from pathlib import Path
-from typing import List, Callable, Optional, Awaitable, TypeVar, Type, cast, Generic
+from typing import List, Callable, Optional, Awaitable, TypeVar, Type, Generic
 from unittest import mock
 
+# noinspection PyPackageRequirements
 import pytest
 from cattr import structure
 from cattrs import structure
@@ -20,7 +21,6 @@ from fable_saga.server import (
     ActionsRequest,
     ConversationRequest,
     BaseEndpoint,
-    ActionsResponse,
     get_generic_types,
     TReq,
     TResp,
@@ -78,6 +78,7 @@ def fake_conversation_request():
 
 @pytest.fixture
 def fake_embedding_model():
+    # noinspection SpellCheckingInspection
     class FakeAsyncEmbeddingModel(DeterministicFakeEmbedding):
 
         async def aembed_documents(self, texts: List[str]):
@@ -88,7 +89,8 @@ def fake_embedding_model():
             func = partial(self.embed_query, text)
             return await asyncio.get_event_loop().run_in_executor(None, func)
 
-        def _select_relevance_score_fn(self, query: str):
+        # noinspection PyMethodMayBeStatic
+        def _select_relevance_score_fn(self, _: str):
             return lambda x: 0.5
 
     return FakeAsyncEmbeddingModel(size=1536)

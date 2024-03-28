@@ -1,6 +1,8 @@
 import uuid
 
 import numpy
+
+# noinspection PyPackageRequirements
 import pytest
 from langchain.schema.embeddings import Embeddings
 

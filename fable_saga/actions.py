@@ -8,7 +8,7 @@ from cattr import unstructure, structure
 from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import load_prompt
 
-from . import logger, SagaCallbackHandler, BaseSagaAgent
+from . import BaseSagaAgent
 
 
 @define(slots=True)
@@ -46,7 +46,7 @@ class GeneratedActions:
 
 
 class ActionsAgent(BaseSagaAgent):
-    """SAGA Agent"""
+    """Agent that generates actions from a context and a list of skills."""
 
     def __init__(self, llm: Optional[BaseLanguageModel] = None):
         super().__init__(
@@ -75,7 +75,17 @@ class ActionsAgent(BaseSagaAgent):
         verbose=False,
         model_override: Optional[str] = None,
     ) -> GeneratedActions:
-        """Generate actions for the given context and skills."""
+        """Generate actions for the given context and skills.
+
+        Args:
+            context: The context for the action generation, this is added to the prompt along with the
+                hardcoded guidance.
+            skills: The list of skills to use for action generation, this is added to the prompt.
+            max_tries: The maximum number of tries to generate actions.
+            verbose: Whether to print verbose output during generation.
+            model_override: The model to use for generation, generally only applicable when using OpenAI, but
+                custom agents could use this if they choose to.
+        """
         assert context is not None and len(context) > 0, "Must provide a context."
         assert (
             skills is not None and len(skills) > 0
@@ -97,6 +107,8 @@ class ActionsAgent(BaseSagaAgent):
         dumped_skills = [unstructure(skill) for skill in skills]
         json_skills = json.dumps(dumped_skills)
 
+        # Try to generate actions up to max_tries times. Sometimes the model doesn't return any options or the
+        # response is invalid JSON.
         while retries <= max_tries:
             try:
                 response: dict = await chain.ainvoke(

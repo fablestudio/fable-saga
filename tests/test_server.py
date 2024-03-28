@@ -4,6 +4,8 @@ from typing import Dict, cast
 from unittest.mock import AsyncMock, patch
 
 import cattrs
+
+# noinspection PyPackageRequirements
 import pytest
 from cattr import unstructure
 
@@ -15,6 +17,7 @@ import fable_saga.server
 from fable_saga import server
 
 # This line is needed to import BEFORE the other fixtures because otherwise they aren't found for some reason.
+# noinspection PyUnresolvedReferences
 from . import (
     fake_actions_llm,
     fake_conversation_llm,
@@ -133,7 +136,7 @@ class TestEmbeddingServer:
         # noinspection PyTypeChecker
         request = server.EmbeddingsRequest(texts=1)  # type: ignore
         with pytest.raises(TypeError, match="'int' object is not iterable"):
-            response = await endpoint.handle_request(request)
+            await endpoint.handle_request(request)
 
     @pytest.mark.asyncio
     async def test_add_documents(self, fake_embedding_agent, fake_documents):
@@ -203,7 +206,10 @@ class TestGenericHandler:
             missing_data: Dict = {}
             with EndpointMocker(server.ActionsEndpoint) as mock:
                 endpoint = mock(fake_actions_agent)
-                expected_error = 'Error validating request: ["required field missing @ $.context", "required field missing @ $.skills"]'
+                expected_error = (
+                    'Error validating request: ["required field missing @ $.context", "required field '
+                    'missing @ $.skills"]'
+                )
 
                 if server.throw_exceptions:
                     with pytest.raises(
@@ -255,7 +261,7 @@ class TestGenericHandler:
         expected_request = server.ActionsRequest(context="context", skills=fake_skills)
         fake_data = {"context": "context", "skills": unstructure(fake_skills)}
 
-        async def fake_handler(*args) -> server.ActionsResponse:
+        async def fake_handler(*_) -> server.ActionsResponse:
             return server.ActionsResponse(
                 actions=fable_saga.actions.GeneratedActions(
                     options=[fable_saga.actions.Action("some_skill")], scores=[1]
