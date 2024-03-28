@@ -12,14 +12,23 @@ from langchain_openai import OpenAIEmbeddings
 default_openai_embedding_model_name = "text-embedding-ada-002"
 
 
+# noinspection SpellCheckingInspection
 class SimpleVectorStore(VectorStore):
-    """Simple vector store for testing."""
+    """Simple vector store that uses numpy for similarity search.
+    This is a brute-force implementation that compares the query vector to all stored vectors,
+    so it is not efficient for large numbers of vectors."""
 
     def __init__(self, embedding_model: Embeddings):
-        """Initialize the vector store."""
+        """Initialize the vector store.
+
+        Args:
+            embedding_model: The embedding model to use for vector generation.
+        """
         self.embedding_model = embedding_model
         self.vectors: List[np.ndarray] = []
         self.ids: List[str] = []
+        # Use an in-memory docstore for now as this is a simple implementation.
+        # In a real implementation, you would want to use a more robust docstore like redis or a database.
         self.docstore = InMemoryDocstore()
 
     def add_texts(
@@ -29,7 +38,14 @@ class SimpleVectorStore(VectorStore):
         ids: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> List[str]:
-        """Add texts to the vector store."""
+        """Add texts to the vector store.
+
+        Args:
+            texts: A list of strings to add to the vector store, one for each document. Embeddings will be generated for each text.
+            metadatas: A matching list of metadata dictionaries for each text that will be stored with the document, but no embeddings will be generated from them.
+            ids: A list of ids to use for the documents. If not provided, UUIDs will be generated.
+            **kwargs: Additional arguments to pass to the embedding model.
+        """
         embedding_values = self.embedding_model.embed_documents(list(texts))
         if ids is None:
             ids = [uuid.uuid4().hex for _ in texts]
@@ -49,7 +65,13 @@ class SimpleVectorStore(VectorStore):
     def similarity_search(
         self, query: str, k: int = 5, **kwargs
     ) -> List[LangchainDocument]:
-        """Find similar vectors."""
+        """Find similar vectors.
+
+        Args:
+            query: The query string to search for. An embedding will be generated for this query and compared to the stored vectors.
+            k: The number of results to return.
+            **kwargs: Additional arguments to pass to the embedding model.
+        """
         results = []
         for doc, score in self.similarity_search_with_score(query, k, **kwargs):
             results.append(doc)
@@ -93,17 +115,26 @@ class SimpleVectorStore(VectorStore):
         metadatas: Optional[List[dict]] = None,
         **kwargs: Any,
     ) -> "SimpleVectorStore":
-        """Create a vector store from texts."""
+        """Create a vector store directly from texts.
+        This is required by the VectorStore interface. (see LangChain docs).
+
+        Args:
+            texts: A list of strings to add to the vector store. (See add_texts).
+            embedding: The embedding model to use for generating embeddings.
+            metadatas: See add_texts.
+            **kwargs: Additional arguments to pass to the embedding model.
+        """
         obj = cls(embedding_model=embedding)
         obj.add_texts(texts, metadatas=metadatas)
         return obj
 
     def _select_relevance_score_fn(self) -> Callable[[float], float]:
-        """Select a relevance score function."""
+        """Select a relevance score function. This is required by the VectorStore interface. (see LangChain docs)."""
         return lambda x: x
 
     @staticmethod
     def cosine_similarity_numpy(x: np.ndarray, y: np.ndarray) -> float:
+        """Compute the cosine similarity between two vectors using numpy."""
 
         # Compute the dot product between x and y
         dot_product = np.dot(x, y)
@@ -117,7 +148,9 @@ class SimpleVectorStore(VectorStore):
 
         return cosine_similarity
 
+    # noinspection PyMethodMayBeStatic
     def cosine_similarity_pure(self, v1: List[float], v2: List[float]) -> float:
+        """Compute the cosine similarity between two vectors using pure Python. Used for validation."""
         import math
 
         "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
@@ -131,9 +164,11 @@ class SimpleVectorStore(VectorStore):
         return sumxy / math.sqrt(sumxx * sumyy)
 
 
+# noinspection SpellCheckingInspection
 @define
 class Document:
-    """Class for storing a piece of text and associated metadata. Keeps an abstraction with Langchain's Document class."""
+    """Class for storing a piece of text and associated metadata.
+    Keeps an abstraction with Langchain's Document class."""
 
     text: str
     """String text."""
@@ -152,63 +187,9 @@ class Document:
         return LangchainDocument(page_content=self.text, metadata=self.metadata)
 
 
+# noinspection SpellCheckingInspection
 class EmbeddingAgent:
     """Does embedding related things like generation, storage, and retrieval."""
-
-    # class FixedUSearch(USearch):
-    #
-    #     def add_texts(
-    #         self,
-    #         texts: Iterable[str],
-    #         metadatas: Optional[List[Dict]] = None,
-    #         ids: Optional[np.ndarray] = None,
-    #         **kwargs: Any,
-    #     ) -> List[str]:
-    #         """Run more texts through the embeddings and add to the vectorstore.
-    #
-    #         Args:
-    #             texts: Iterable of strings to add to the vectorstore.
-    #             metadatas: Optional list of metadatas associated with the texts.
-    #             ids: Optional list of unique IDs.
-    #
-    #         Returns:
-    #             List of ids from adding the texts into the vectorstore.
-    #         """
-    #         if not isinstance(self.docstore, AddableMixin):
-    #             raise ValueError(
-    #                 "If trying to add texts, the underlying docstore should support "
-    #                 f"adding items, which {self.docstore} does not"
-    #             )
-    #
-    #         embeddings = self.embedding.embed_documents(list(texts))
-    #         documents = []
-    #         for i, text in enumerate(texts):
-    #             metadata = metadatas[i] if metadatas else {}
-    #             documents.append(Document(page_content=text, metadata=metadata))
-    #         last_id = int(self.ids[-1]) + 1
-    #         if ids is None:
-    #             ids = np.array([str(last_id + id) for id, _ in enumerate(texts)])
-    #
-    #         self.index.add(np.array(ids), np.array(embeddings))
-    #         self.docstore.add(dict(zip(ids, documents)))
-    #         self.ids.extend(ids)
-    #         return ids.tolist()
-
-    # class AsyncSKLearnVectorStore(SKLearnVectorStore):
-    #     """Async version of SKLearnVectorStore."""
-    #
-    #     async def aadd_texts(
-    #         self,
-    #         texts: Iterable[str],
-    #         metadatas: Optional[List[dict]] = None,
-    #         **kwargs: Any,
-    #     ) -> List[str]:
-    #         func = partial(self.add_texts, texts, metadatas, **kwargs)
-    #         return await asyncio.get_event_loop().run_in_executor(None, func)
-    #
-    #     def _select_relevance_score_fn(self) -> Callable[[float], float]:
-    #         """Select a relevance score function."""
-    #         return lambda x: 0.5
 
     def __init__(
         self,

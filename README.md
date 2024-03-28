@@ -139,9 +139,9 @@ memories and the like in your context data, but don't want to send the entire te
 provides embeddings, but will also store documents and find similar documents based on the embedding of a query you
 provide. This is useful for finding similar memories, personas, etc.
 
-Right now, there is only a single index that uses sklearn's NearestNeighbors to find similar documents. This is not
-very scalable, but it's a good starting point and it uses OpenAI's embeddings, which are very good. Both can be swapped
-out for other systems supported by LangChain (see the `fable_saga.server` module for details).
+Right now, there is only a single index that uses a simple in-memory numpy VectorStore to find similar documents. This is not
+very scalable, but it's a good starting point and uses OpenAI's embeddings, which are very good. Both can be swapped
+out for other systems supported by LangChain (see the `fable_saga.embeddings` module for details).
 
 Also, right now there is only a single index, but it's possible to have multiple indexes soon, each with their own
 embeddings and similar documents. This is useful if you want to have different indexes for different types of
@@ -251,7 +251,7 @@ Space Colony Demo
 
 The Space Colony demo is a simple text-based simulation of a spaceship with a crew of 5 agents.
 There are various locations on the ship that the agents can move to and objects they can interact
-with. All of this data we call "Meta-Memories" and they formatted and provided to the `fable_saga.Agent`
+with. All of this data we call "Meta-Memories" and they formatted and provided to the `fable_saga.ActionsAgent`
 when requesting actions.
 
 Generating Actions from Skills
@@ -281,7 +281,7 @@ It's important to note that SAGA itself doesn't know how to drive the simulation
 is left to the simulation itself. SAGA only knows how to generate actions based on the skills you
 provide it. You can add more skills to the demo for instance, and SAGA will be able to generate
 actions for them, but you will have to implement the logic for those actions in the demo simulation.
-You can also use the `fable_saga.Agent` class outside the demo to generate actions for your own sim. 
+You can also use the `fable_saga.ActionsAgent` class outside the demo to generate actions for your own sim. 
 This demo just makes it easy to see how the agents use these skills to generate actions.
 
 Skills are used by SAGA to generate Action options. In the demo, they are returned to you interactively
@@ -318,11 +318,14 @@ Memories
 -------------
 As the agents move around the ship and interact with objects and other agents, they generate memories
 of those interactions. These memories are formatted as a list when passed in as context data to
-the `fable_saga.Agent` class. The demo simulation keeps track of these memories, not SAGA.
+the `fable_saga.ActionsAgent` and `fable_saga.ConversationAgent` classese. The demo simulation keeps track of these memories, not SAGA.
 
 The memories will continue to be generated as the agents interact with the world. This can add a lot of
 tokens to the context data, so if you have any intention of running the demo for a long time, you will
 want to implement some kind of memory management system to keep the context data from getting too large.
+
+Since there isn't a memory management system in place, the demo simulation will eventually run out of context tokens
+depending on the model you are using. The default model is `gpt-3.5-turbo-1106` which has a token limit of 4096 tokens.
 
 Large Language Models
 -------------

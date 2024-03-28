@@ -1,6 +1,7 @@
 import datetime
 from unittest.mock import Mock
 
+# noinspection PyPackageRequirements
 import pytest
 
 import fable_saga
@@ -11,8 +12,7 @@ from fable_saga.demos.space_colony.simulation import (
     ActionGenerator,
     ConversationGenerator,
 )
-from .test_conversations import fake_conversation_llm
-from .test_actions import fake_actions_llm, FakeChatOpenAI
+from . import fake_actions_llm, fake_conversation_llm, FakeOpenAI
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def fake_conversation_agent(fake_conversation_llm):
 
 @pytest.fixture
 def fake_chat_openai():
-    return FakeChatOpenAI(responses=[], sleep=0.1)
+    return FakeOpenAI(responses=[], sleep=0.1)
 
 
 class TestSimulation:
@@ -113,7 +113,7 @@ class TestSimulation:
     @pytest.mark.asyncio
     async def test_simulation_tick(self, fake_conversation_agent, fake_chat_openai):
 
-        goto_bridge_llm = FakeChatOpenAI(
+        goto_bridge_llm = FakeOpenAI(
             responses=[
                 """{"options": [
                 {"skill": "go_to", "parameters": {"destination": "bridge", "goal": "get to the bridge"}},
@@ -144,7 +144,7 @@ class TestSimulation:
     @pytest.mark.asyncio
     async def test_go_to(self, fake_conversation_llm, fake_chat_openai):
 
-        goto_bridge_llm = FakeChatOpenAI(
+        goto_bridge_llm = FakeOpenAI(
             responses=[
                 """{"options": [
                 {"skill": "go_to", "parameters": {"destination": "bridge", "goal": "get to the bridge"}},

@@ -1,19 +1,30 @@
+import abc
 import base64
 import json
 import logging
 import struct
-from typing import List, Optional, Type, Dict, Union
+import typing
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Union,
+    TypeVar,
+    Generic,
+)
 
 import cattrs
 import socketio
 from aiohttp import web, WSMsgType
 from attr import define
-from langchain.llms.base import BaseLanguageModel
 
 import fable_saga
+from fable_saga.actions import Skill, ActionsAgent
 from fable_saga.conversations import GeneratedConversation, ConversationAgent
 from fable_saga.embeddings import Document, EmbeddingAgent
-from fable_saga.actions import Skill, ActionsAgent
+
+TReq = TypeVar("TReq")
+TResp = TypeVar("TResp")
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +34,28 @@ converter = cattrs.Converter(forbid_extra_keys=False)
 """
 Sets up a server that can be used to generate actions for SAGA. Either HTTP or socketio can be used.
 """
+
+throw_exceptions = False
+
+
+def get_generic_types(cls_obj):
+    """Get the generic types of an object. This is used to get the TReq and TResp types of an endpoint.
+    For example, if the object is an instance of ActionsEndpoint, then this will return (ActionsRequest, ActionsResponse)
+    because ActionsEndpoint is a subclass of BaseEndpoint[ActionsRequest, ActionsResponse].
+
+    Note that this is a bit of a hack, and may not work for all cases, like Mock objects.
+
+    Args:
+        cls_obj: The class object to get the generic types of.
+
+    Returns:
+        Tuple of the generic types of the class object.
+
+    """
+    for base in getattr(cls_obj, "__orig_bases__", []):
+        if hasattr(base, "__args__"):
+            return base.__args__
+    return None
 
 
 @define(slots=True)
@@ -129,147 +162,159 @@ class ErrorResponse:
     error: Optional[str] = None
 
 
-class SagaServer:
-    """Server for SAGA."""
+class BaseEndpoint(Generic[TReq, TResp]):
+    """Base class for all endpoints."""
 
-    def __init__(self, llm: Optional[BaseLanguageModel] = None):
-        super().__init__()
-        self.agent = ActionsAgent(llm)
-
-    async def generate_actions(self, req: ActionsRequest) -> ActionsResponse:
-        # Generate actions
-        try:
-            assert isinstance(req, ActionsRequest), f"Invalid request type: {type(req)}"
-            actions = await self.agent.generate_actions(
-                req.context, req.skills, req.retries, req.verbose, req.model
-            )
-            response = ActionsResponse(actions=actions, reference=req.reference)
-            if actions.error is not None:
-                response.error = f"Generation Error: {actions.error}"
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return ActionsResponse(actions=None, error=str(e), reference=req.reference)
+    @abc.abstractmethod
+    async def handle_request(self, request: TReq) -> TResp:
+        raise NotImplementedError
 
 
-class ConversationServer:
-    def __init__(self, llm: Optional[BaseLanguageModel] = None):
-        super().__init__()
-        self.agent = ConversationAgent(llm)
+class ActionsEndpoint(BaseEndpoint[ActionsRequest, ActionsResponse]):
+    """Generate an ActionsResponse (action options) from an ActionsRequest (context and skills)."""
 
-    async def generate_conversation(
-        self, req: ConversationRequest
-    ) -> ConversationResponse:
-        # Generate conversation
-        try:
-            assert isinstance(
-                req, ConversationRequest
-            ), f"Invalid request type: {type(req)}"
-            conversation = await self.agent.generate_conversation(
-                req.persona_guids, req.context, req.retries, req.verbose, req.model
-            )
-            response = ConversationResponse(
-                conversation=conversation, reference=req.reference
-            )
-            if conversation.error is not None:
-                response.error = f"Generation Error: {conversation.error}"
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return ConversationResponse(
-                conversation=None, error=str(e), reference=req.reference
-            )
+    def __init__(self, agent: ActionsAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: ActionsRequest) -> ActionsResponse:
+        actions = await self.agent.generate_actions(
+            req.context, req.skills, req.retries, req.verbose, req.model
+        )
+        response = ActionsResponse(actions=actions, reference=req.reference)
+        if actions.error is not None:
+            response.error = f"Generation Error: {actions.error}"
+        return response
 
 
-class EmbeddingsServer:
-    """Server for Embeddings."""
+class ConversationEndpoint(BaseEndpoint[ConversationRequest, ConversationResponse]):
+    """Generate a ConversationResponse from a ConversationRequest."""
 
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.agent = EmbeddingAgent(**kwargs)
+    def __init__(self, agent: ConversationAgent):
+        self.agent = agent
 
-    async def generate_embeddings(self, req: EmbeddingsRequest) -> EmbeddingsResponse:
-        # Generate embeddings
-        try:
-            assert isinstance(
-                req, EmbeddingsRequest
-            ), f"Invalid request type: {type(req)}"
-            embeddings = await self.agent.embed_documents(req.texts)
-            packed_embeddings = [
-                base64.b64encode(struct.pack("!%sf" % len(e), *e)).decode("ascii")
-                for e in embeddings
-            ]
-            response = EmbeddingsResponse(
-                embeddings=packed_embeddings, reference=req.reference
-            )
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return EmbeddingsResponse(
-                embeddings=[], error=str(e), reference=req.reference
-            )
+    async def handle_request(self, req: ConversationRequest) -> ConversationResponse:
+        conversation = await self.agent.generate_conversation(
+            req.persona_guids, req.context, req.retries, req.verbose, req.model
+        )
+        response = ConversationResponse(
+            conversation=conversation, reference=req.reference
+        )
+        if conversation.error is not None:
+            response.error = f"Generation Error: {conversation.error}"
+        return response
 
-    async def add_documents(self, req: AddDocumentsRequest) -> AddDocumentsResponse:
-        # Add documents
-        try:
-            assert isinstance(
-                req, AddDocumentsRequest
-            ), f"Invalid request type: {type(req)}"
-            guids = await self.agent.store_documents(req.documents)
-            response = AddDocumentsResponse(guids=guids, reference=req.reference)
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return AddDocumentsResponse(guids=[], error=str(e), reference=req.reference)
 
-    async def find_similar(self, req: FindSimilarRequest) -> FindSimilarResponse:
-        # Find similar documents
-        try:
-            assert isinstance(
-                req, FindSimilarRequest
-            ), f"Invalid request type: {type(req)}"
-            results = await self.agent.find_similar(req.query, req.k)
-            documents, scores = zip(*results)
-            response = FindSimilarResponse(
-                documents=documents, scores=scores, reference=req.reference  # type: ignore
-            )
-            return response
-        except Exception as e:
-            logger.error(str(e))
-            return FindSimilarResponse(
-                documents=[], scores=[], error=str(e), reference=req.reference
-            )
+class GenerateEmbeddingsEndpoint(BaseEndpoint[EmbeddingsRequest, EmbeddingsResponse]):
+    """Generate an EmbeddingsResponse from an EmbeddingsRequest."""
+
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: EmbeddingsRequest) -> EmbeddingsResponse:
+        embeddings = await self.agent.embed_documents(req.texts)
+        packed_embeddings = [
+            base64.b64encode(struct.pack("!%sf" % len(e), *e)).decode("ascii")
+            for e in embeddings
+        ]
+        response = EmbeddingsResponse(
+            embeddings=packed_embeddings, reference=req.reference
+        )
+        return response
+
+
+class AddDocumentsEndpoint(BaseEndpoint[AddDocumentsRequest, AddDocumentsResponse]):
+    """Add documents to the embedding agent."""
+
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: AddDocumentsRequest) -> AddDocumentsResponse:
+        guids = await self.agent.store_documents(req.documents)
+        response = AddDocumentsResponse(guids=guids, reference=req.reference)
+        return response
+
+
+class FindSimilarEndpoint(BaseEndpoint[FindSimilarRequest, FindSimilarResponse]):
+    """Find similar documents to a query."""
+
+    def __init__(self, agent: EmbeddingAgent):
+        self.agent = agent
+
+    async def handle_request(self, req: FindSimilarRequest) -> FindSimilarResponse:
+        results = await self.agent.find_similar(req.query, req.k)
+        documents, scores = zip(*results)
+        response = FindSimilarResponse(
+            documents=documents, scores=scores, reference=req.reference  # type: ignore
+        )
+        return response
 
 
 async def generic_handler(
-    data: Union[str, Dict], request_type: Type, process_function, response_type: Type
-):
+    data: Union[str, Dict], endpoint: BaseEndpoint[TReq, TResp]
+) -> Dict[str, typing.Any]:
+    """Wraps all requests in a generic way to handle errors and exceptions in a consistent, type-safe manner
+    but uses the defined endpoint to handle the request itself.
+
+    Args:
+        data: Basically the request data is the raw JSON string of the incoming request. It is converted to a dictionary
+            and then to the request object to validate it.
+        endpoint: The endpoint to handle the request. It should be an instance of BaseEndpoint.
+    Returns:
+        The response type converted back into a dictionary for sending back to the client.
+    """
+    if not isinstance(endpoint, BaseEndpoint):
+        raise ValueError(
+            f"Invalid endpoint: {endpoint}: Does not inherit from BaseEndpoint"
+        )
+    # Get the generic types of the endpoint to validate the request and response. This is a bit of a hack and doesn't
+    # work for all cases, like Mocked objects.
+    type_hints = get_generic_types(type(endpoint))
+    # Check that the endpoint has the correct generic types.
+    assert (
+        len(type_hints) == 2
+    ), f"Invalid endpoint Generic type hints for '{type(endpoint)}': Should be a TReq and TResp."
+    t_req, t_resp = type_hints
     try:
+        # Convert the data to the request type and validate it.
         if isinstance(data, str):
             data = json.loads(data)
-        # noinspection PyTypeChecker
-        request = converter.structure(data, request_type)
-        result = await process_function(request)
-        assert isinstance(result, response_type), (
-            f"Invalid response type: {type(result)},"
-            f" expected instance of {response_type}"
+        request = converter.structure(data, t_req)
+        assert isinstance(request, t_req), (
+            f"Invalid request type: {type(request)}," f" expected instance of {t_req}"
+        )
+
+        # Pass the request to the endpoint to actually handle it.
+        result = await endpoint.handle_request(request)
+
+        # Validate the response and convert it back to a dictionary.
+        assert isinstance(result, t_resp), (
+            f"Invalid response type: {type(result)}," f" expected instance of {t_resp}"
         )
         response = converter.unstructure(result)
         logger.debug(f"Response: {response}")
         return response
     except json.decoder.JSONDecodeError as e:
         error = f"Error decoding JSON: {str(e)}"
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
     except cattrs.errors.ClassValidationError as e:
         error = f"Error validating request: {json.dumps(cattrs.transform_error(e))}"
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
     except Exception as e:
         error = f"Error processing request: {str(e)}"
-    logger.error(error)
-    response = response_type(error=error)
+        logger.exception(error)
+        if throw_exceptions:
+            raise e
+    response = t_resp(error=error)
     output = converter.unstructure(response)
     return output
 
 
 if __name__ == "__main__":
+    """Run the server directly, with command line arguments and options for different server types."""
 
     # Parse command line arguments
     import argparse
@@ -289,15 +334,17 @@ if __name__ == "__main__":
     parser.add_argument("--cors", type=str, default=None, help="CORS origin")
     args = parser.parse_args()
 
-    # Create common server objects
-    # Note: This is where you could override the LLM by passing the llm parameter to SagaServer.
-    saga_server = SagaServer()
-    embeddings_server = EmbeddingsServer()
-    conversation_server = ConversationServer()
+    # Create common agents to be used by the endpoints.
+    actions_agent = ActionsAgent()
+    conversation_agent = ConversationAgent()
+    embedding_agent = EmbeddingAgent()
 
     app = web.Application()
 
-    # Create socketio server
+    ########################################################
+    # SocketIO Server
+    ########################################################
+
     if args.type == "socketio":
         if args.cors is None:
             args.cors = "*"
@@ -322,9 +369,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                ActionsRequest,
-                saga_server.generate_actions,
-                ActionsResponse,
+                ActionsEndpoint(actions_agent),
             )
 
         @sio.on("generate-conversation")
@@ -332,9 +377,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                ConversationRequest,
-                conversation_server.generate_conversation,
-                ConversationResponse,
+                ConversationEndpoint(conversation_agent),
             )
 
         @sio.on("generate-embeddings")
@@ -342,9 +385,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                EmbeddingsRequest,
-                embeddings_server.generate_embeddings,
-                EmbeddingsResponse,
+                GenerateEmbeddingsEndpoint(embedding_agent),
             )
 
         @sio.on("add-documents")
@@ -352,9 +393,7 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                AddDocumentsRequest,
-                embeddings_server.add_documents,
-                AddDocumentsResponse,
+                AddDocumentsEndpoint(embedding_agent),
             )
 
         @sio.on("find-similar")
@@ -362,12 +401,12 @@ if __name__ == "__main__":
             logger.debug(f"Request from {sid}: {message_str}")
             return await generic_handler(
                 message_str,
-                FindSimilarRequest,
-                embeddings_server.find_similar,
-                FindSimilarResponse,
+                FindSimilarEndpoint(embedding_agent),
             )
 
-    # Create HTTP server
+    ########################################################
+    # HTTP (REST) Server
+    ########################################################
     elif args.type == "http":
         """HTTP server
         Make a POST request to the server with a JSON body message (See README.md for details).
@@ -382,9 +421,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                ActionsRequest,
-                saga_server.generate_actions,
-                ActionsResponse,
+                ActionsEndpoint(actions_agent),
             )
             return web.json_response(response)
 
@@ -395,9 +432,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                ConversationRequest,
-                conversation_server.generate_conversation,
-                ConversationResponse,
+                ConversationEndpoint(conversation_agent),
             )
             return web.json_response(response)
 
@@ -408,9 +443,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                EmbeddingsRequest,
-                embeddings_server.generate_embeddings,
-                EmbeddingsResponse,
+                GenerateEmbeddingsEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
@@ -421,9 +454,7 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                AddDocumentsRequest,
-                embeddings_server.add_documents,
-                AddDocumentsResponse,
+                AddDocumentsEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
@@ -434,15 +465,16 @@ if __name__ == "__main__":
             logger.debug(f"Request: {message_str}")
             response = generic_handler(
                 message_str,
-                FindSimilarRequest,
-                embeddings_server.find_similar,
-                FindSimilarResponse,
+                FindSimilarEndpoint(embedding_agent),
             )
             return web.json_response(response)
 
         # Listen for POST requests on the root path
         app.add_routes([web.post("/", generate_actions)])
 
+    ########################################################
+    # Websockets Server
+    ########################################################
     elif args.type == "websockets":
 
         from aiohttp import WSMessage
@@ -470,37 +502,27 @@ if __name__ == "__main__":
                                 if request_type == "generate-actions":
                                     response = await generic_handler(
                                         request_data,
-                                        ActionsRequest,
-                                        saga_server.generate_actions,
-                                        ActionsResponse,
+                                        ActionsEndpoint(actions_agent),
                                     )
                                 elif request_type == "generate-conversation":
                                     response = await generic_handler(
                                         request_data,
-                                        ConversationRequest,
-                                        conversation_server.generate_conversation,
-                                        ConversationResponse,
+                                        ConversationEndpoint(conversation_agent),
                                     )
                                 elif request_type == "generate-embeddings":
                                     response = await generic_handler(
                                         request_data,
-                                        EmbeddingsRequest,
-                                        embeddings_server.generate_embeddings,
-                                        EmbeddingsResponse,
+                                        GenerateEmbeddingsEndpoint(embedding_agent),
                                     )
                                 elif request_type == "add-documents":
                                     response = await generic_handler(
                                         request_data,
-                                        AddDocumentsRequest,
-                                        embeddings_server.add_documents,
-                                        AddDocumentsResponse,
+                                        AddDocumentsEndpoint(embedding_agent),
                                     )
                                 elif request_type == "find-similar":
                                     response = await generic_handler(
                                         request_data,
-                                        FindSimilarRequest,
-                                        embeddings_server.find_similar,
-                                        FindSimilarResponse,
+                                        FindSimilarEndpoint(embedding_agent),
                                     )
                                 else:
                                     error = f"Invalid request-type: {request_type}"
@@ -527,6 +549,7 @@ if __name__ == "__main__":
         raise ValueError("Invalid server type: " + args.type)
 
     # Setup logging
+    # noinspection SpellCheckingInspection
     formatter = logging.Formatter(
         "%(asctime)s - saga.server - %(levelname)s - %(message)s"
     )

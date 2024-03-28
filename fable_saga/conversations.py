@@ -8,8 +8,6 @@ from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import load_prompt
 
 from . import (
-    logger,
-    SagaCallbackHandler,
     BaseSagaAgent,
 )
 
@@ -31,8 +29,14 @@ class GeneratedConversation:
 
 
 class ConversationAgent(BaseSagaAgent):
+    """Agent that generates conversation from a context and a list of personas."""
 
     def __init__(self, llm: Optional[BaseLanguageModel] = None):
+        """Initialize the conversation agent.
+
+        Args:
+            llm: The language model to use for generation. Defaults to OpenAI. (see LangChain docs).
+        """
         super().__init__(
             prompt_template=load_prompt(
                 pathlib.Path(__file__).parent.resolve()
@@ -49,7 +53,16 @@ class ConversationAgent(BaseSagaAgent):
         verbose=False,
         model_override: Optional[str] = None,
     ) -> GeneratedConversation:
-        """Generate conversation for the given personas and context"""
+        """Generate conversation for the given personas and context
+
+        Args:
+            persona_guids: A list of persona guids to generate conversation for. They probably match information in the
+                context.
+            context: The context to generate conversation for like character descriptions, setting, etc.
+            max_tries: The maximum number of retries to attempt if no options are found.
+            verbose: Whether to print verbose output.
+            model_override: The model to use for generation (allows for switching llm.model_name at runtime).
+        """
         assert (
             persona_guids is not None and len(persona_guids) > 0
         ), "Must provide at least one persona_guid."

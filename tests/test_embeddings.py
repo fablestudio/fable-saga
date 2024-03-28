@@ -1,40 +1,14 @@
-import asyncio
-import json
 import uuid
-from functools import partial
-from typing import List
 
 import numpy
+
+# noinspection PyPackageRequirements
 import pytest
-from langchain.embeddings.fake import DeterministicFakeEmbedding
 from langchain.schema.embeddings import Embeddings
 
 import fable_saga.embeddings as saga_embed
 
-
-@pytest.fixture
-def fake_embedding_model():
-    class FakeAsyncEmbeddingModel(DeterministicFakeEmbedding):
-
-        async def aembed_documents(self, texts: List[str]):
-            func = partial(self.embed_documents, texts)
-            return await asyncio.get_event_loop().run_in_executor(None, func)
-
-        async def aembed_query(self, text: str):
-            func = partial(self.embed_query, text)
-            return await asyncio.get_event_loop().run_in_executor(None, func)
-
-        def _select_relevance_score_fn(self, query: str):
-            return lambda x: 0.5
-
-    return FakeAsyncEmbeddingModel(size=1536)
-
-
-@pytest.fixture
-def fake_documents():
-    data = json.load(open("examples/embedding_documents.json"))
-    documents = [saga_embed.Document(**doc) for doc in data["documents"]]
-    return documents
+from . import fake_embedding_model, fake_documents
 
 
 class TestEmbeddingsAgent:

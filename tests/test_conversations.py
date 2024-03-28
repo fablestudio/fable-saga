@@ -1,37 +1,12 @@
-import json
-from typing import List
-
+# noinspection PyPackageRequirements
 import pytest
-from cattrs import structure
-from langchain.llms.base import BaseLanguageModel
-from langchain.llms.fake import FakeListLLM
 
 import fable_saga
 import fable_saga.conversations
-from fable_saga.server import ConversationRequest
+from tests import fake_conversation_llm
 
 
 # Create a fake OpenAI model that inherits from the FakeListLLM and ChatOpenAI classes.
-class FakeOpenAI(FakeListLLM, BaseLanguageModel):
-    model_name = "unchanged"
-
-    def __init__(self, responses: List[str], sleep: float = 0):
-        FakeListLLM.__init__(self, responses=responses, sleep=sleep)
-
-
-@pytest.fixture
-def fake_conversation_llm():
-    conversations = json.load(open("examples/generated_conversation.json"))
-    responses = [json.dumps(conversation) for conversation in conversations]
-    llm = FakeOpenAI(responses=responses, sleep=0.1)
-    return llm
-
-
-@pytest.fixture
-def fake_conversation_request():
-    request_data = json.load(open("examples/conversation_request.json"))
-    req = structure(request_data, ConversationRequest)
-    return req
 
 
 class TestConversationAgent:
