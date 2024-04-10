@@ -210,7 +210,7 @@ class EmbeddingAgent:
                 self._embeddings_model = OpenAIEmbeddings()
             except ImportError:
                 raise ImportError(
-                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --with openai`) or provide a specific embeddings model."
+                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --extras openai`) or provide a specific embeddings model."
                 )
 
         # Use sklearn (brute-force) by default.

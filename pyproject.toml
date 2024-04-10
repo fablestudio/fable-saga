@@ -16,11 +16,12 @@ langchain = {version = "^0.1.13"}
 types-pyyaml = "^6.0.12.20240311"
 numpy = "^1.26.4"
 
-[tool.poetry.group.openai]
-optional = true
+# Optional dependencies
+langchain-openai = { version = "^0.1.1", optional = true }
 
-[tool.poetry.group.openai.dependencies]
-langchain-openai = "^0.1.1"
+
+[tool.poetry.extras]
+openai = ["langchain-openai"]
 
 
 [tool.poetry.group.test]

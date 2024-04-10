@@ -82,7 +82,7 @@ class BaseSagaAgent(abc.ABC):
                 from langchain_openai import ChatOpenAI
             except ImportError:
                 raise ImportError(
-                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --with openai`) or provide a specific llm."
+                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --extras openai`) or provide a specific llm."
                 )
             self._llm = ChatOpenAI(
                 temperature=default_openai_model_temperature,
