@@ -8,7 +8,6 @@ from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import BasePromptTemplate
 from langchain.schema import LLMResult
 from langchain.schema.output import Generation
-from langchain_openai import ChatOpenAI
 
 # Package wide defaults.
 default_openai_model_name = "gpt-3.5-turbo-1106"
@@ -72,18 +71,27 @@ class BaseSagaAgent(abc.ABC):
             response_callback=lambda result: logger.info(f"Response: {result}"),
         )
 
-        self._llm: BaseLanguageModel = (
-            llm
-            if llm is not None
-            # Use the default OpenAI model if no model is provided.
-            else ChatOpenAI(
+        if llm is not None:
+            assert isinstance(
+                llm, BaseLanguageModel
+            ), "llm must inherit from BaseLanguageModel."
+            self._llm = llm
+        else:
+            logger.warning("No language model provided, using default OpenAI model.")
+            try:
+                from langchain_openai import ChatOpenAI
+            except ImportError:
+                raise ImportError(
+                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --with openai`) or provide a specific llm."
+                )
+            self._llm = ChatOpenAI(
                 temperature=default_openai_model_temperature,
                 # Set the response format to JSON object, this feature is specific to a subset of OpenAI models,
                 # but it seems to help a lot as we expect a JSON object response.
                 model_kwargs={"response_format": {"type": "json_object"}},
                 callbacks=[self.callback_handler],
             )
-        )
+
         self.prompt_template = prompt_template
 
     def generate_chain(self, model_override: Optional[str] = None) -> LLMChain:

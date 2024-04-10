@@ -1,17 +1,13 @@
 import datetime
 from unittest.mock import Mock
 
-# noinspection PyPackageRequirements
 import pytest
 
 import fable_saga
 import fable_saga.conversations
 import fable_saga.actions
-from fable_saga.demos.space_colony import simulation
-from fable_saga.demos.space_colony.simulation import (
-    ActionGenerator,
-    ConversationGenerator,
-)
+from fable_saga.demos import space_colony
+
 from . import fake_actions_llm, fake_conversation_llm, FakeOpenAI
 
 
@@ -35,9 +31,9 @@ class TestSimulation:
     def test_simulation_init(
         self, fake_saga_agent, fake_conversation_agent, fake_chat_openai
     ):
-        sim = simulation.Simulation(
-            ActionGenerator(fake_saga_agent),
-            ConversationGenerator(fake_conversation_agent),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(fake_saga_agent),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         assert sim is not None
@@ -46,9 +42,9 @@ class TestSimulation:
     def test_simulation_load_agents(
         self, fake_saga_agent, fake_conversation_agent, fake_chat_openai
     ):
-        sim = simulation.Simulation(
-            ActionGenerator(fake_saga_agent),
-            ConversationGenerator(fake_conversation_agent),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(fake_saga_agent),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         sim.load()
@@ -66,9 +62,9 @@ class TestSimulation:
     def test_simulation_load_skills(
         self, fake_saga_agent, fake_conversation_agent, fake_chat_openai
     ):
-        sim = simulation.Simulation(
-            ActionGenerator(fake_saga_agent),
-            ConversationGenerator(fake_conversation_agent),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(fake_saga_agent),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         sim.load()
@@ -79,10 +75,12 @@ class TestSimulation:
         assert captain.skills[0].name == "go_to"
         assert list(captain.skills[0].parameters.keys()) == ["destination", "goal"]
 
-    def test_simulation_load_locations(self, fake_saga_agent, fake_conversation_agent):
-        sim = simulation.Simulation(
-            ActionGenerator(fake_saga_agent),
-            ConversationGenerator(fake_conversation_agent),
+    def test_simulation_load_locations(
+        self, fake_saga_agent, fake_conversation_agent, fake_chat_openai
+    ):
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(fake_saga_agent),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         sim.load()
@@ -97,9 +95,9 @@ class TestSimulation:
     def test_simulation_load_objects(
         self, fake_saga_agent, fake_conversation_agent, fake_chat_openai
     ):
-        sim = simulation.Simulation(
-            ActionGenerator(fake_saga_agent),
-            ConversationGenerator(fake_conversation_agent),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(fake_saga_agent),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         sim.load()
@@ -123,9 +121,11 @@ class TestSimulation:
             ]
         )
 
-        sim = simulation.Simulation(
-            ActionGenerator(fable_saga.actions.ActionsAgent(goto_bridge_llm)),
-            ConversationGenerator(fake_conversation_agent),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(
+                fable_saga.actions.ActionsAgent(goto_bridge_llm)
+            ),
+            space_colony.ConversationGenerator(fake_conversation_agent),
             fake_chat_openai,
         )
         for agent in sim.agents.values():
@@ -154,9 +154,11 @@ class TestSimulation:
             ]
         )
 
-        sim = simulation.Simulation(
-            ActionGenerator(fable_saga.actions.ActionsAgent(goto_bridge_llm)),
-            ConversationGenerator(fake_conversation_llm),
+        sim = space_colony.Simulation(
+            space_colony.ActionGenerator(
+                fable_saga.actions.ActionsAgent(goto_bridge_llm)
+            ),
+            space_colony.ConversationGenerator(fake_conversation_llm),
             fake_chat_openai,
         )
         sim.load()

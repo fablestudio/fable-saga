@@ -1,7 +1,6 @@
-import gevent
 from _typeshed import Incomplete
 
-class Thread(gevent.Greenlet):
+class Thread(Incomplete):
     def __init__(self, target, args=[], kwargs={}) -> None: ...
 
 class uWSGIWebSocket:
