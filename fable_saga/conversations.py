@@ -76,8 +76,9 @@ class ConversationAgent(BaseSagaAgent):
         formatted_persona_guids = "[" + ", ".join(persona_guids) + "]"
 
         while retries <= max_tries:
+            raw_response = None
             try:
-                response = await chain.ainvoke(
+                response: dict = await chain.ainvoke(
                     {"context": context, "persona_guids": formatted_persona_guids},
                     {"callbacks": [self.callback_handler]},
                 )
@@ -107,11 +108,15 @@ class ConversationAgent(BaseSagaAgent):
                 return conversation
 
             except (json.JSONDecodeError, TypeError) as e:
-                last_error = f"Error decoding response: {str(e)}"
+                last_error = f"Error decoding response: {str(e)}\n"
             except cattrs.errors.ClassValidationError as e:
                 last_error = f"Error validating response: {cattrs.transform_error(e)}"
             except Exception as e:
                 last_error = str(e)
+            finally:
+                # If there was an error, add the raw response to the error message.
+                if last_error:
+                    last_error += f"Raw response: {raw_response}"
             retries += 1
 
         return GeneratedConversation(

@@ -110,6 +110,7 @@ class ActionsAgent(BaseSagaAgent):
         # Try to generate actions up to max_tries times. Sometimes the model doesn't return any options or the
         # response is invalid JSON.
         while retries <= max_tries:
+            raw_response = None
             try:
                 response: dict = await chain.ainvoke(
                     {"context": context, "skills": json_skills},
@@ -148,6 +149,10 @@ class ActionsAgent(BaseSagaAgent):
                 last_error = f"Error validating response: {cattrs.transform_error(e)}"
             except Exception as e:
                 last_error = str(e)
+            finally:
+                # If there was an error, add the raw response to the error message.
+                if last_error:
+                    last_error += f"Raw response: {raw_response}"
             retries += 1
         return GeneratedActions(
             options=[],
