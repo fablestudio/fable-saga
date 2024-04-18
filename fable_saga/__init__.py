@@ -50,8 +50,12 @@ class StreamingDebugCallback(AsyncCallbackHandler):
         # We don't want to print them.
         if token == "\n" and self.last_token == "\n":
             return
-        if streaming_debug_logger.isEnabledFor(logging.DEBUG):
+        if streaming_debug_logger.level == logging.DEBUG:
+            # If we are in debug mode, print everything (words).
             print(token, end="", flush=True)
+        elif streaming_debug_logger.level == logging.INFO:
+            # If we are in info mode, print only dots to indicate progress.
+            print(".", end="", flush=True)
         self.last_token = token
 
 
