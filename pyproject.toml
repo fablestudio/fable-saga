@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fable-saga"
-version = "0.0.0"
+version = "0.6.0.post1.dev0+d728521"
 description = "AI agents that turn skills into actions."
 authors = ["Frank Carey <fcarey@gmail.com>"]
 readme = "README.md"
@@ -14,8 +14,15 @@ cattrs = "^23.1.2"
 aiohttp = "^3.8.5"
 langchain = {version = "^0.1.13"}
 types-pyyaml = "^6.0.12.20240311"
-langchain-openai = "^0.1.1"
 numpy = "^1.26.4"
+
+# Optional dependencies
+langchain-openai = { version = "^0.1.1", optional = true }
+
+
+[tool.poetry.extras]
+openai = ["langchain-openai"]
+
 
 [tool.poetry.group.test]
 optional = true
@@ -30,7 +37,7 @@ black = "^24.3.0"
 
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"

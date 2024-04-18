@@ -10,9 +10,9 @@ Demo Quickstart
 -------------
 1. Make sure you have git, python-3.10/11, and poetry installed and OPENAI key setup (see below).
 2. Clone this repo and change the directory to it.
-3. run `poetry install` to install dependencies.
+3. run `poetry install --all-extras` to install dependencies.
 4. start a poetry shell with `poetry shell` to make sure you are using the correct python version and have the correct environment variables set.
-5. run `python -m fable_saga.demos.space_colony.simulation`
+5. run `python -m fable_saga.demos.space_colony`
 
 B.Y.O.S. (Bring Your Own Simulation)
 --------

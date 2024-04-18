@@ -1,5 +1,4 @@
 from _typeshed import Incomplete
-from eventlet.websocket import WebSocketWSGI as _WebSocketWSGI
 
 class EventletThread:
     target: Incomplete
@@ -10,6 +9,6 @@ class EventletThread:
     def start(self) -> None: ...
     def join(self): ...
 
-class WebSocketWSGI(_WebSocketWSGI):
+class WebSocketWSGI(Incomplete):
     def __init__(self, handler, server) -> None: ...
     def __call__(self, environ, start_response): ...

@@ -7,7 +7,8 @@ from langchain.schema import Document as LangchainDocument
 from langchain.schema.embeddings import Embeddings
 from langchain.vectorstores import VectorStore
 from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_openai import OpenAIEmbeddings
+
+from . import logger
 
 default_openai_embedding_model_name = "text-embedding-ada-002"
 
@@ -187,7 +188,7 @@ class Document:
         return LangchainDocument(page_content=self.text, metadata=self.metadata)
 
 
-# noinspection SpellCheckingInspection
+# noinspection SpellCheckingInspection,PyPackageRequirements
 class EmbeddingAgent:
     """Does embedding related things like generation, storage, and retrieval."""
 
@@ -199,9 +200,18 @@ class EmbeddingAgent:
         """Initialize the agent."""
 
         # Use OpenAI by default.
-        self._embeddings_model = (
-            embeddings if embeddings is not None else OpenAIEmbeddings()
-        )
+        if embeddings is not None:
+            self._embeddings_model = embeddings
+        else:
+            try:
+                logger.warn("No embeddings model provided. Using OpenAI by default.")
+                from langchain_openai import OpenAIEmbeddings
+
+                self._embeddings_model = OpenAIEmbeddings()
+            except ImportError:
+                raise ImportError(
+                    "langchain-openai not found. Please install langchain-openai (e.g `poetry install --extras openai`) or provide a specific embeddings model."
+                )
 
         # Use sklearn (brute-force) by default.
         if storage is not None:

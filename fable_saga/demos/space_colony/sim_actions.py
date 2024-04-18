@@ -9,7 +9,7 @@ from fable_saga.demos.space_colony import sim_models
 from fable_saga.demos.space_colony.sim_models import EntityId
 
 if typing.TYPE_CHECKING:
-    from fable_saga.demos.space_colony.simulation import Simulation, SimAgent
+    from fable_saga.demos.space_colony import Simulation, SimAgent
 
 
 class SimAction:
@@ -141,10 +141,11 @@ class Reflect(SimAction):
         if self.run_time.total_seconds() < 60:
             return
             # Generate and format the conversation into a memory
-        from . import simulation
+
+        from . import Format
 
         response = sim.sim_model.invoke(
-            simulation.Format.standard_llm_context(self.agent, sim)
+            Format.standard_llm_context(self.agent, sim)
             + f"In the context of {self.focus}, generate a VERY short, one sentence, specific actionable plan to achieve {self.result} within a larger goal of {self.goal}."
             f"Then, break down the plan into smaller steps that ONLY use the types of skills listed as numbered bullet points and are also very, very short. Don't explain the steps, just list them"
             f"For example, if the focus is 'ship', the result is 'fix engine', and the goal is 'escape attack', then the plan might be 'replace coupler to fix ship engine'."

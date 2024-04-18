@@ -290,6 +290,11 @@ async def generic_handler(
         assert isinstance(result, t_resp), (
             f"Invalid response type: {type(result)}," f" expected instance of {t_resp}"
         )
+
+        # Inform the user about any errors encountered
+        if result.error:
+            logger.error(result.error)
+
         response = converter.unstructure(result)
         logger.debug(f"Response: {response}")
         return response
