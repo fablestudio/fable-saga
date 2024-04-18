@@ -15,6 +15,48 @@ default_openai_model_temperature = 0.9
 
 # Set up logging.
 logger = logging.getLogger(__name__)
+streaming_debug_logger = logging.getLogger(__name__ + ".streaming_debug")
+
+
+class StreamingDebugCallback(AsyncCallbackHandler):
+    """Callback handler that prints the response as it comes in."""
+
+    def __init__(self):
+        self.response: str = ""
+        self.last_token: str = ""
+
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ):
+        """Run on LLM start."""
+        # Reset the response and last good response.
+        self.response = ""
+
+        if streaming_debug_logger.isEnabledFor(logging.INFO):
+            print("\n-> Generating ..", flush=True)
+
+    def on_llm_end(self, response: LLMResult, **kwargs):
+        """Run on LLM end."""
+        if streaming_debug_logger.isEnabledFor(logging.INFO):
+            print(
+                "\n-> Done!",
+                flush=True,
+            )
+
+    def on_llm_new_token(self, token: str, **kwargs):
+        """Run on new LLM token. Only available when streaming is enabled."""
+        self.response += token
+        # The json mode of ollama (mistra:instruct at least) sends a lot of newlines at the end of the response.
+        # We don't want to print them.
+        if token == "\n" and self.last_token == "\n":
+            return
+        if streaming_debug_logger.level == logging.DEBUG:
+            # If we are in debug mode, print everything (words).
+            print(token, end="", flush=True)
+        elif streaming_debug_logger.level == logging.INFO:
+            # If we are in info mode, print only dots to indicate progress.
+            print(".", end="", flush=True)
+        self.last_token = token
 
 
 class SagaCallbackHandler(AsyncCallbackHandler):
@@ -89,7 +131,8 @@ class BaseSagaAgent(abc.ABC):
                 # Set the response format to JSON object, this feature is specific to a subset of OpenAI models,
                 # but it seems to help a lot as we expect a JSON object response.
                 model_kwargs={"response_format": {"type": "json_object"}},
-                callbacks=[self.callback_handler],
+                callbacks=[self.callback_handler, StreamingDebugCallback()],
+                streaming=True,
             )
 
         self.prompt_template = prompt_template
