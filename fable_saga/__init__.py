@@ -15,6 +15,7 @@ default_openai_model_temperature = 0.9
 
 # Set up logging.
 logger = logging.getLogger(__name__)
+streaming_debug_logger = logging.getLogger(__name__ + ".streaming_debug")
 
 
 class StreamingDebugCallback(AsyncCallbackHandler):
@@ -27,17 +28,20 @@ class StreamingDebugCallback(AsyncCallbackHandler):
     def on_llm_start(
         self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ):
+        """Run on LLM start."""
         # Reset the response and last good response.
         self.response = ""
-        """Run on LLM start."""
-        print("\n-> Generating ..", flush=True)
+
+        if streaming_debug_logger.isEnabledFor(logging.INFO):
+            print("\n-> Generating ..", flush=True)
 
     def on_llm_end(self, response: LLMResult, **kwargs):
         """Run on LLM end."""
-        print(
-            "\n-> Done!",
-            flush=True,
-        )
+        if streaming_debug_logger.isEnabledFor(logging.INFO):
+            print(
+                "\n-> Done!",
+                flush=True,
+            )
 
     def on_llm_new_token(self, token: str, **kwargs):
         """Run on new LLM token. Only available when streaming is enabled."""
@@ -46,7 +50,8 @@ class StreamingDebugCallback(AsyncCallbackHandler):
         # We don't want to print them.
         if token == "\n" and self.last_token == "\n":
             return
-        print(token, end="", flush=True)
+        if streaming_debug_logger.isEnabledFor(logging.DEBUG):
+            print(token, end="", flush=True)
         self.last_token = token
 
 
