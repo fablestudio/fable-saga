@@ -2,12 +2,10 @@
   {
     "conversation": [
       {
-        "persona_guid": "person_a",
-        "dialogue": "person_a_dialogue"
+        "person_a": "person_a_dialogue"
       },
       {
-        "persona_guid": "person_b",
-        "dialogue": "person_b_dialogue"
+        "person_b": "person_b_dialogue"
       }
     ]
   }

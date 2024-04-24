@@ -107,10 +107,8 @@ class TestConversationEndpoint:
         # Validate conversation data
         conversation = response.conversation.conversation
         assert len(conversation) == 2
-        assert conversation[0].persona_guid == "person_a"
-        assert conversation[0].dialogue == "person_a_dialogue"
-        assert conversation[1].persona_guid == "person_b"
-        assert conversation[1].dialogue == "person_b_dialogue"
+        assert conversation[0]["person_a"] == "person_a_dialogue"
+        assert conversation[1]["person_b"] == "person_b_dialogue"
 
 
 class TestEmbeddingServer:
