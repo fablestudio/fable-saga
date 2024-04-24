@@ -13,14 +13,8 @@ from . import (
 
 
 @define(slots=True)
-class ConversationTurn:
-    persona_guid: str
-    dialogue: str
-
-
-@define(slots=True)
 class GeneratedConversation:
-    conversation: List[ConversationTurn]
+    conversation: List[Dict[str, str]]
     raw_prompt: Optional[str] = None
     raw_response: Optional[str] = None
     llm_info: Optional[Dict[str, Any]] = None
