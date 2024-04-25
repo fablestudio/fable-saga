@@ -190,7 +190,10 @@ class ConverseWith(SimAction):
         if generated_conversation.error is None:
             conversation_formatted = "Dialogue:\n"
             for turn in generated_conversation.conversation:
-                conversation_formatted += f"\t{turn.persona_guid}: {turn.dialogue}\n"
+                for persona_guid in turn:
+                    conversation_formatted += (
+                        f"\t{persona_guid}: {turn[persona_guid]}\n"
+                    )
 
             self.agent.memories.append(
                 sim_models.Memory(

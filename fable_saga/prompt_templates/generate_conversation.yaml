@@ -8,5 +8,5 @@ template: |
     Only generate valid JSON.
     Use the following JSON format to construct the conversation:
             {{"conversation": [
-                {{"persona_guid": <str: identifier of the speaking character>, "dialogue": <str: the line of dialogue spoken>
+                {{<str: identifier of the speaking character>, <str: the line of dialogue spoken>
             ]}}

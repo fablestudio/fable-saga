@@ -39,10 +39,8 @@ class TestConversationAgent:
 
         # Validate conversation output
         assert len(response.conversation) == 2
-        assert response.conversation[0].persona_guid == "person_a"
-        assert response.conversation[0].dialogue == "person_a_dialogue"
-        assert response.conversation[1].persona_guid == "person_b"
-        assert response.conversation[1].dialogue == "person_b_dialogue"
+        assert response.conversation[0]["person_a"] == "person_a_dialogue"
+        assert response.conversation[1]["person_b"] == "person_b_dialogue"
 
         # Check that the prompt starts with the right text.
         # Note: We don't add the "Human: " prefix in the test data, LangChain does that.
