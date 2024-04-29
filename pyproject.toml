@@ -8,13 +8,13 @@ packages = [{include = "fable_saga"}]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.8, <3.11"
+python = ">=3.8.1, <4"
 python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
 aiohttp = "^3.8.5"
 langchain = {version = "^0.1.13"}
 types-pyyaml = "^6.0.12.20240311"
-numpy = "^1.26.4"
+numpy = "^1.24.4"
 
 # Optional dependencies
 langchain-openai = { version = "^0.1.1", optional = true }
