@@ -74,6 +74,13 @@ class SagaCallbackHandler(AsyncCallbackHandler):
         self.prompt_callback = prompt_callback
         self.response_callback = response_callback
 
+    def on_llm_new_token(self, token: str, **kwargs):
+        if self.last_model_info is not None:
+            # If we have model info, we can calculate the token usage.
+            # See below for the on_llm_start method where we set the last_model_info
+            # to get around the issue of OpenAI not returning the token count in the response.
+            self.last_model_info["token_usage"]["completion_tokens"] += 1
+
     async def on_llm_start(
         self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> Any:
@@ -82,8 +89,37 @@ class SagaCallbackHandler(AsyncCallbackHandler):
         if self.prompt_callback is not None:
             self.prompt_callback(prompts)
 
+        # If streaming is enabled, currently OpenAI doesn't return the count of tokens in the response.
+        # so we need to create the llm_info ourselves.
+        # See https://github.com/langchain-ai/langchain/issues/13430
+        params = kwargs.get("invocation_params", {})
+        if (
+            "stream" in params
+            and params["stream"]
+            and "_type" in params
+            and params["_type"] == "openai-chat"
+        ):
+            # Use the tiktoken library to get the token counts.
+            import tiktoken
+
+            model_name = params.get("model_name")
+            enc = tiktoken.encoding_for_model(model_name)
+            token_count = 0
+            # For each prompt, count the tokens.
+            for prompt in prompts:
+                tokens = enc.encode(prompt)
+                token_count += len(tokens)
+            # Set the last model info, so it can be used later to count completion tokens and then
+            # returned in the response.
+            self.last_model_info = {
+                "model_name": params.get("model_name"),
+                "token_usage": {"prompt_tokens": token_count, "completion_tokens": 0},
+            }
+
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> Any:
-        self.last_model_info = response.llm_output
+        # Don't overwrite the last model info if it's already set (e.g. when OpenAI streaming above).
+        if self.last_model_info is None:
+            self.last_model_info = response.llm_output
         if len(response.generations) > 0:
             # TODO: This is a hack to get the last generation. We should fix this in langchain.
             flat_generation = response.generations[0][0]
