@@ -175,11 +175,9 @@ class BaseSagaAgent(abc.ABC):
 
     def generate_chain(self, model_override: Optional[str] = None) -> LLMChain:
         """Generate an LLMChain for the agent. (see LangChain docs)."""
-        if hasattr(self._llm, "model_name"):
+        if model_override and hasattr(self._llm, "model_name"):
             # If this model has a model_name attribute, set it to the override if provided. Useful to change models at
             # runtime, for instance when using OpenAI and allowing the caller to specify which specific model to use
             # per request.
-            self._llm.model_name = (
-                model_override if model_override else default_openai_model_name
-            )
+            self._llm.model_name = model_override
         return LLMChain(llm=self._llm, prompt=self.prompt_template)
