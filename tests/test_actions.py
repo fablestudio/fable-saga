@@ -30,16 +30,7 @@ class TestSagaAgent:
         # fake_llm.callbacks = [callback_handler]
         agent = ActionsAgent(fake_actions_llm)
 
-        # Should be using the default model
-        test_model = "test_model"
-        assert fake_actions_llm.model_name != test_model
-
-        actions = await agent.generate_actions(
-            "context", fake_skills, model_override=test_model
-        )
-
-        # Should be using the test model
-        assert fake_actions_llm.model_name == test_model
+        actions = await agent.generate_actions("context", fake_skills)
 
         # In our test data, we assume 2 actions are generated and are pre-sorted by score.
         assert len(actions.options) == 2

@@ -9,10 +9,6 @@ from langchain.prompts import BasePromptTemplate
 from langchain.schema import LLMResult
 from langchain.schema.output import Generation
 
-# Package wide defaults.
-default_openai_model_name = "gpt-3.5-turbo-1106"
-default_openai_model_temperature = 0.9
-
 # Set up logging.
 logger = logging.getLogger(__name__)
 streaming_debug_logger = logging.getLogger(__name__ + ".streaming_debug")
@@ -163,7 +159,8 @@ class BaseSagaAgent(abc.ABC):
                     "langchain-openai not found. Please install langchain-openai (e.g `poetry install --extras openai`) or provide a specific llm."
                 )
             self._llm = ChatOpenAI(
-                temperature=default_openai_model_temperature,
+                temperature=0.9,
+                model="gpt-3.5-turbo",
                 # Set the response format to JSON object, this feature is specific to a subset of OpenAI models,
                 # but it seems to help a lot as we expect a JSON object response.
                 model_kwargs={"response_format": {"type": "json_object"}},
@@ -173,11 +170,6 @@ class BaseSagaAgent(abc.ABC):
 
         self.prompt_template = prompt_template
 
-    def generate_chain(self, model_override: Optional[str] = None) -> LLMChain:
+    def generate_chain(self) -> LLMChain:
         """Generate an LLMChain for the agent. (see LangChain docs)."""
-        if model_override and hasattr(self._llm, "model_name"):
-            # If this model has a model_name attribute, set it to the override if provided. Useful to change models at
-            # runtime, for instance when using OpenAI and allowing the caller to specify which specific model to use
-            # per request.
-            self._llm.model_name = model_override
         return LLMChain(llm=self._llm, prompt=self.prompt_template)

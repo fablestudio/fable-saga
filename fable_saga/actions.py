@@ -73,7 +73,6 @@ class ActionsAgent(BaseSagaAgent):
         skills: List[Skill],
         max_tries=0,
         verbose=False,
-        model_override: Optional[str] = None,
     ) -> GeneratedActions:
         """Generate actions for the given context and skills.
 
@@ -83,8 +82,6 @@ class ActionsAgent(BaseSagaAgent):
             skills: The list of skills to use for action generation, this is added to the prompt.
             max_tries: The maximum number of tries to generate actions.
             verbose: Whether to print verbose output during generation.
-            model_override: The model to use for generation, generally only applicable when using OpenAI, but
-                custom agents could use this if they choose to.
         """
         assert context is not None and len(context) > 0, "Must provide a context."
         assert (
@@ -99,7 +96,7 @@ class ActionsAgent(BaseSagaAgent):
                 skill.description is not None and len(skill.description) > 0
             ), "Must provide a skill description."
 
-        chain = self.generate_chain(model_override)
+        chain = self.generate_chain()
         chain.verbose = verbose
 
         retries = 0

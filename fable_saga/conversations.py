@@ -45,7 +45,6 @@ class ConversationAgent(BaseSagaAgent):
         context: str,
         max_tries=0,
         verbose=False,
-        model_override: Optional[str] = None,
     ) -> GeneratedConversation:
         """Generate conversation for the given personas and context
 
@@ -62,7 +61,7 @@ class ConversationAgent(BaseSagaAgent):
         ), "Must provide at least one persona_guid."
         assert context is not None and len(context) > 0, "Must provide a context."
 
-        chain = self.generate_chain(model_override)
+        chain = self.generate_chain()
         chain.verbose = verbose
 
         retries = 0

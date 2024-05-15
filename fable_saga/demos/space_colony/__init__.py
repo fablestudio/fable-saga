@@ -160,7 +160,7 @@ class Simulation:
                 verbose=True,
             )
             if hasattr(self.sim_model, "model_name"):
-                self.sim_model.model_name = fable_saga.default_openai_model_name
+                self.sim_model.model_name = "gpt4-4o"
 
     def load(self):
         """Load the simulation data from the YAML files."""
@@ -214,7 +214,6 @@ class ActionGenerator:
         sim_agent: SimAgent,
         retries=0,
         verbose=False,
-        model_override: Optional[str] = None,
     ) -> GeneratedActions:
         """Generate actions for this agent using the SAGA agent."""
 
@@ -225,7 +224,6 @@ class ActionGenerator:
             sim_agent.skills,
             max_tries=retries,
             verbose=verbose,
-            model_override=model_override,
         )
 
     @staticmethod
@@ -258,7 +256,6 @@ class ConversationGenerator:
         additional_context: Optional[str] = None,
         retries=0,
         verbose=False,
-        model_override: Optional[str] = None,
     ) -> fable_saga.conversations.GeneratedConversation:
         """Generate a conversation between sim_agent and other_agent.
         Note that saga_agent.generate_conversation can support more than 2 agents,
@@ -287,7 +284,6 @@ class ConversationGenerator:
             context,
             max_tries=retries,
             verbose=verbose,
-            model_override=model_override,
         )
 
 
