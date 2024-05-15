@@ -12,16 +12,17 @@ python = ">=3.8.1, <4"
 python-socketio = "^5.9.0"
 cattrs = "^23.1.2"
 aiohttp = "^3.8.5"
-langchain = {version = "^0.1.13"}
+langchain = {version = "^0.1.20"}
 types-pyyaml = "^6.0.12.20240311"
 numpy = "^1.24.4"
 
 # Optional dependencies
-langchain-openai = { version = "^0.1.1", optional = true }
+langchain-openai = { version = "^0.1.6", optional = true }
+tiktoken = { version = "^0.7.0", optional = true }
 
 
 [tool.poetry.extras]
-openai = ["langchain-openai"]
+openai = ["langchain-openai", "tiktoken"]
 
 
 [tool.poetry.group.test]

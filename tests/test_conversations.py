@@ -25,17 +25,10 @@ class TestConversationAgent:
     async def test_generate_conversation_not_openai(self, fake_conversation_llm):
         agent = fable_saga.conversations.ConversationAgent(fake_conversation_llm)
 
-        # Should be using the default model
-        test_model = "test_model"
-        assert fake_conversation_llm.model_name != test_model
-
         response = await agent.generate_conversation(
-            ["person_a", "person_b"], "test_context", model_override=test_model
+            ["person_a", "person_b"], "test_context"
         )
         assert isinstance(response, fable_saga.conversations.GeneratedConversation)
-
-        # Should be using the test model
-        assert fake_conversation_llm.model_name == test_model
 
         # Validate conversation output
         assert len(response.conversation) == 2

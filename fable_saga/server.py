@@ -178,7 +178,7 @@ class ActionsEndpoint(BaseEndpoint[ActionsRequest, ActionsResponse]):
 
     async def handle_request(self, req: ActionsRequest) -> ActionsResponse:
         actions = await self.agent.generate_actions(
-            req.context, req.skills, req.retries, req.verbose, req.model
+            req.context, req.skills, req.retries, req.verbose
         )
         response = ActionsResponse(actions=actions, reference=req.reference)
         if actions.error is not None:
@@ -194,7 +194,7 @@ class ConversationEndpoint(BaseEndpoint[ConversationRequest, ConversationRespons
 
     async def handle_request(self, req: ConversationRequest) -> ConversationResponse:
         conversation = await self.agent.generate_conversation(
-            req.persona_guids, req.context, req.retries, req.verbose, req.model
+            req.persona_guids, req.context, req.retries, req.verbose
         )
         response = ConversationResponse(
             conversation=conversation, reference=req.reference
