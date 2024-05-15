@@ -67,6 +67,7 @@ class SagaCallbackHandler(AsyncCallbackHandler):
         self.last_prompt: Optional[str] = None
         self.last_generation: Optional[str] = None
         self.last_model_info: Optional[dict[str, Any]] = None
+        self.last_model_id: List[str] = []
         self.prompt_callback = prompt_callback
         self.response_callback = response_callback
 
@@ -85,32 +86,40 @@ class SagaCallbackHandler(AsyncCallbackHandler):
         if self.prompt_callback is not None:
             self.prompt_callback(prompts)
 
+        self.last_model_id = serialized.get("id", [])
+
         # If streaming is enabled, currently OpenAI doesn't return the count of tokens in the response.
         # so we need to create the llm_info ourselves.
         # See https://github.com/langchain-ai/langchain/issues/13430
-        params = kwargs.get("invocation_params", {})
-        if (
-            "stream" in params
-            and params["stream"]
-            and "_type" in params
-            and params["_type"] == "openai-chat"
-        ):
-            # Use the tiktoken library to get the token counts.
-            import tiktoken
+        if "openai" in self.last_model_id:
+            params = kwargs.get("invocation_params", {})
+            if "stream" in params and params["stream"]:
+                # Use the tiktoken library to get the token counts.
+                import tiktoken
 
-            model_name = params.get("model_name")
-            enc = tiktoken.encoding_for_model(model_name)
-            token_count = 0
-            # For each prompt, count the tokens.
-            for prompt in prompts:
-                tokens = enc.encode(prompt)
-                token_count += len(tokens)
-            # Set the last model info, so it can be used later to count completion tokens and then
-            # returned in the response.
-            self.last_model_info = {
-                "model_name": params.get("model_name"),
-                "token_usage": {"prompt_tokens": token_count, "completion_tokens": 0},
-            }
+                model_name = params.get("model_name")
+
+                # GPT-4o models use a different encoding, it looks
+                # tiktoken doesn't have a mapping for that yet.
+                # See https://github.com/openai/tiktoken/commit/9d01e5670ff50eb74cdb96406c7f3d9add0ae2f8
+                if model_name.startswith("gpt-4o"):
+                    enc = tiktoken.get_encoding("o200k_base")
+                else:
+                    enc = tiktoken.encoding_for_model(model_name)
+                token_count = 0
+                # For each prompt, count the tokens.
+                for prompt in prompts:
+                    tokens = enc.encode(prompt)
+                    token_count += len(tokens)
+                # Set the last model info, so it can be used later to count completion tokens and then
+                # returned in the response.
+                self.last_model_info = {
+                    "model_name": params.get("model_name"),
+                    "token_usage": {
+                        "prompt_tokens": token_count,
+                        "completion_tokens": 0,
+                    },
+                }
 
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> Any:
         # Don't overwrite the last model info if it's already set (e.g. when OpenAI streaming above).
@@ -121,6 +130,39 @@ class SagaCallbackHandler(AsyncCallbackHandler):
             flat_generation = response.generations[0][0]
             if isinstance(flat_generation, Generation):
                 self.last_generation = flat_generation.text
+
+        if (
+            "openai" in self.last_model_id
+            and self.last_model_info is not None
+            and "token_usage" in self.last_model_info
+        ):
+            # Calculate the token cost for the completion and prompt tokens.
+            # These are not guaranteed to be accurate, but they should be helpful.
+            from langchain_community.callbacks.openai_info import (
+                get_openai_token_cost_for_model,
+                MODEL_COST_PER_1K_TOKENS,
+            )
+
+            # Set the cost per 1k tokens for the models while waiting on this PR to be merged:
+            # https://github.com/langchain-ai/langchain/pull/21673/files
+            MODEL_COST_PER_1K_TOKENS["gpt-4o"] = 0.005
+            MODEL_COST_PER_1K_TOKENS["gpt-4o-2024-05-13"] = 0.005
+            MODEL_COST_PER_1K_TOKENS["gpt-4o-completion"] = 0.015
+            MODEL_COST_PER_1K_TOKENS["gpt-4o-2024-05-13-completion"] = 0.015
+
+            completion_tokens = self.last_model_info["token_usage"]["completion_tokens"]
+            model_name = self.last_model_info["model_name"]
+            self.last_model_info["token_usage"]["completion_tokens_cost"] = (
+                get_openai_token_cost_for_model(model_name, completion_tokens)
+            )
+            prompt_tokens = self.last_model_info["token_usage"]["prompt_tokens"]
+            self.last_model_info["token_usage"]["prompt_tokens_cost"] = (
+                get_openai_token_cost_for_model(model_name, prompt_tokens)
+            )
+        # TODO: Do the cost calculation for other companies as well.
+
+        # Set any overrides back to the response itself.
+        response.llm_output = self.last_model_info
         if self.response_callback is not None:
             self.response_callback(response)
 
